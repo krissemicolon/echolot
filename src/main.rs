@@ -5,17 +5,19 @@ mod encode;
 mod decode;
 mod cli;
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let args: Vec<String> = env::args().collect();
 
     if args.get(1).is_none() {
         cli::help();
-        exit(1);
+        return Err(anyhow::format_err!("Missing argument."));
     }
-
+    
     match args.get(1).unwrap().as_str() {
         "transmit" => println!("transmitting"),
         "receive"  => println!("receiving"),
         _          => cli::help()
     }
+
+    Ok(())
 }
