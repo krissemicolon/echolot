@@ -1,5 +1,4 @@
 use std::env;
-use std::process::exit;
 
 mod transmit;
 mod receive;
