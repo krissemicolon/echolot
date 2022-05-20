@@ -1,8 +1,8 @@
 use std::env;
 use std::process::exit;
 
-mod encode;
-mod decode;
+mod transmit;
+mod receive;
 mod cli;
 
 fn main() -> anyhow::Result<()> {
@@ -14,8 +14,8 @@ fn main() -> anyhow::Result<()> {
     }
     
     match args.get(1).unwrap().as_str() {
-        "transmit" => println!("transmitting"),
-        "receive"  => println!("receiving"),
+        "transmit" => { println!("transmitting..."); transmit::transmit(); },
+        "receive"  => { println!("receiving...");    receive::receive(); },
         _          => cli::help()
     }
 
