@@ -3,6 +3,7 @@ use std::env;
 mod transmit;
 mod receive;
 mod cli;
+mod sound;
 
 fn main() -> anyhow::Result<()> {
     let args: Vec<String> = env::args().collect();
