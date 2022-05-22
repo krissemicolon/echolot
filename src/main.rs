@@ -1,4 +1,8 @@
+#![allow(clippy::precedence)]
+
 use std::env;
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use fundsp::hacker::*;
 
 mod transmit;
 mod receive;
@@ -12,6 +16,8 @@ fn main() -> anyhow::Result<()> {
         cli::help();
         return Err(anyhow::format_err!("Missing argument."));
     }
+
+    sound::Sound::new()?.play_freq(440.0);
     
     match args.get(1).unwrap().as_str() {
         "transmit" => { 
