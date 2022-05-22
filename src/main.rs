@@ -7,7 +7,6 @@ use fundsp::hacker::*;
 mod transmit;
 mod receive;
 mod cli;
-mod sound;
 
 fn main() -> anyhow::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -17,8 +16,6 @@ fn main() -> anyhow::Result<()> {
         return Err(anyhow::format_err!("Missing argument."));
     }
 
-    sound::Sound::new()?.play_freq(440.0);
-    
     match args.get(1).unwrap().as_str() {
         "transmit" => { 
             println!("transmitting...");
