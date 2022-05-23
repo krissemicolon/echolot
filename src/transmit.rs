@@ -8,7 +8,7 @@ pub fn encode() -> anyhow::Result<Vec<f32>> {
     let mut frequency_sequence: Vec<f32> = Vec::new();
 
     for xs in base64_file.chars() {
-        frequency_sequence.push(sound::semitone_freq(xs as u32));
+        frequency_sequence.push((xs as u32 * 10) as f32);
     }
 
     println!("Max: {}", frequency_sequence.clone().into_iter().fold(f32::NEG_INFINITY, f32::max));
@@ -19,6 +19,7 @@ pub fn encode() -> anyhow::Result<Vec<f32>> {
 
 pub fn transmit() -> anyhow::Result<()> {
     let freq_seq = encode()?;
+    println!("{:?}", freq_seq);
 
     let mut sound = sound::Sound::new()?;
 

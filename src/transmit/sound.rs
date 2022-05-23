@@ -42,7 +42,7 @@ impl Sound {
         let mut sample_clock = 0f32;
         let mut next_value = move || {
             sample_clock = (sample_clock + 1.0) % sample_rate;
-            (sample_clock * (frequency / 100.0) * 2.0 * std::f32::consts::PI / sample_rate).sin()
+            (sample_clock * frequency * 2.0 * std::f32::consts::PI / sample_rate).sin()
         };
     
         let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
