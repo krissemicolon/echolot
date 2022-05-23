@@ -10,6 +10,10 @@ pub fn encode() -> anyhow::Result<Vec<f32>> {
     for xs in base64_file.chars() {
         frequency_sequence.push(sound::semitone_freq(xs as u32));
     }
+
+    println!("Max: {}", frequency_sequence.clone().into_iter().fold(f32::NEG_INFINITY, f32::max));
+    println!("Min: {}", frequency_sequence.clone().into_iter().fold(f32::INFINITY, f32::min)); 
+
     Ok(frequency_sequence)
 }
 

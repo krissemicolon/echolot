@@ -23,9 +23,7 @@ fn main() -> anyhow::Result<()> {
             println!("receiving...");    
             receive::receive();
         },
-        _          => {
-            cli::help();
-        }
+        _          => cli::help()
 
     }
 
