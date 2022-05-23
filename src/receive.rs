@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::io::prelude::*;
 use base64::decode as decode_base64;
 
 pub fn decode() -> anyhow::Result<Vec<u8>> {
@@ -6,5 +8,8 @@ pub fn decode() -> anyhow::Result<Vec<u8>> {
 }
 
 pub fn receive() {
-    println!("{}", String::from_utf8_lossy(&decode().unwrap()));
+    let received_content = String::from_utf8(decode().unwrap()).unwrap();
+
+    let mut file = File::create("demonstration.dat.rec").unwrap();
+    file.write_all(&received_content.as_bytes()).expect("Couldn't Save Received File");
 }
