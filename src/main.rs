@@ -1,8 +1,6 @@
 #![allow(clippy::precedence)]
 
 use std::env;
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use fundsp::hacker::*;
 
 mod transmit;
 mod receive;
