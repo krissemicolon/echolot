@@ -1,7 +1,7 @@
 use std::fs;
 use base64::encode as encode_base64;
 
-mod sound;
+mod speaker;
 
 pub fn encode() -> anyhow::Result<Vec<f32>> {
     let base64_file = encode_base64(fs::read_to_string("demonstration.dat")?);
@@ -21,10 +21,10 @@ pub fn transmit() -> anyhow::Result<()> {
     let freq_seq = encode()?;
     println!("{:?}", freq_seq);
 
-    let mut sound = sound::Sound::new()?;
+    let mut speaker = speaker::Speaker::new()?;
 
     for freq in freq_seq {
-        sound.play_freq(freq, 50)?;
+        speaker.play_freq(freq, 50)?;
     }
 
     Ok(())

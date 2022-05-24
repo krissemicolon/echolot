@@ -1,4 +1,5 @@
 #![allow(clippy::precedence)]
+#![allow(dead_code)]
 
 use cpal::{traits::{DeviceTrait, HostTrait, StreamTrait}, Device, SupportedStreamConfig, StreamConfig};
 
@@ -18,12 +19,12 @@ where
     }
 }
 
-pub struct Sound {
+pub struct Speaker {
     device: Device,
     config: SupportedStreamConfig,
 }
 
-impl Sound {
+impl Speaker {
     pub fn new() -> Result<Self, std::io::Error> {
         let host = cpal::default_host();
         let device = host.default_output_device().expect("failed to find a default output device");
