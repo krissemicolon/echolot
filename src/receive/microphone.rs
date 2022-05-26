@@ -1,4 +1,6 @@
 #![allow(clippy::precedence)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
 
 use cpal::{traits::{DeviceTrait, HostTrait, StreamTrait}, Device, SupportedStreamConfig, StreamConfig, Stream};
 
@@ -20,7 +22,10 @@ impl Microphone {
 
         let stream = device.build_input_stream(
             &StreamConfig::from(config.to_owned()),
-            |data: &[f32], &_| { println!("{:?}", data[data.len() - 1]); },
+            |data: &[f32], &_| {
+                println!("{:?}", data[data.len() - 1]);
+                println!("{:?}", data.len());
+            },
             err_fn,
         ).expect("Couln't Open Stream");
 
