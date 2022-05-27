@@ -11,8 +11,10 @@ pub fn decode() -> anyhow::Result<Vec<u8>> {
 
 pub fn receive() {
     let received_content = String::from_utf8(decode().unwrap()).unwrap();
+
+    let mut sample_buffer: Vec<f32> = Vec::new();
     
-    let mut mic = microphone::Microphone::new().unwrap();
+    let mut mic = microphone::Microphone::new(&mut sample_buffer).unwrap();
     mic.start_listen().unwrap();
     std::thread::sleep(std::time::Duration::from_millis(10000));
     mic.stop_listen().unwrap();

@@ -12,7 +12,7 @@ pub struct Microphone {
 }
 
 impl Microphone {
-    pub fn new() -> Result<Self, std::io::Error> {
+    pub fn new(buffer: &'static mut Vec<f32>) -> Result<Self, std::io::Error> {
         let host = cpal::default_host();
         let device = host.default_input_device().expect("failed to find a default input device");
         let config = device.default_input_config().unwrap();
@@ -22,9 +22,10 @@ impl Microphone {
 
         let stream = device.build_input_stream(
             &StreamConfig::from(config.to_owned()),
-            |data: &[f32], &_| {
-                println!("{:?}", data[data.len() - 1]);
-                println!("{:?}", data.len());
+            move |data: &[f32], &_| {
+                for s in data {
+                    buffer.push(s.clone());
+                }
             },
             err_fn,
         ).expect("Couln't Open Stream");
