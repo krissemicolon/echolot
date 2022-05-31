@@ -45,6 +45,7 @@ impl Speaker {
             sample_clock = (sample_clock + 1.0) % sample_rate;
             (sample_clock * frequency * 2.0 * std::f32::consts::PI / sample_rate).sin()
         };
+
     
         let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
 
