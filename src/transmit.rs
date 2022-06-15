@@ -9,8 +9,8 @@ pub fn encode() -> anyhow::Result<Vec<f32>> {
 
     println!("{}", base64_file);
 
-    for xs in base64_file.chars() {
-        frequency_sequence.push((xs as u32 * 10) as f32);
+    for c in base64_file.chars() {
+        frequency_sequence.push((c as u32 * 10) as f32);
     }
 
     println!("Max: {}", frequency_sequence.clone().into_iter().fold(f32::NEG_INFINITY, f32::max));
