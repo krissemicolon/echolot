@@ -1,2 +1,2 @@
 # echolot
-> A way to quickly share files over sound
+> A way to conveniently share files over sound
