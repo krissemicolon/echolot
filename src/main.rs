@@ -2,8 +2,10 @@
 
 use std::env;
 
+mod coding;
 mod transmit;
 mod receive;
+mod pitch_detection;
 mod cli;
 
 fn main() -> anyhow::Result<()> {
