@@ -16,6 +16,7 @@ use crate::pitch_detection;
 pub fn encode(file: &str) -> anyhow::Result<Vec<f32>> {
     // file stringify stage
     let base64_file = encode_base64(fs::read_to_string(file)?);
+    println!("{}",base64_file);
 
     // frequency sequence calculation stage
     let frequency_sequence: Vec<f32> = Vec::from_iter(base64_file.chars().map(|c| base64_to_freq(c)));
@@ -65,7 +66,8 @@ fn freq_to_base64(freq: f32) -> char {
     base64_value_to_base64_char((((freq as u32 - 440) / 10) - 5) as u8)
 }
 
-fn base64_char_to_base64_value(c: char) -> u8 {
+// TODO: improve error handling also this could be written with base64::CharacterSet
+fn base64_char_to_base64_value(c: char) -> u16 {
     match c {
         'A' => 01, 'B' => 02, 'C' => 03, 'D' => 04, 'E' => 05,
         'F' => 06, 'G' => 07, 'H' => 08, 'I' => 09, 'J' => 10,
@@ -80,10 +82,11 @@ fn base64_char_to_base64_value(c: char) -> u8 {
         'y' => 51, 'z' => 52, '0' => 53, '1' => 54, '2' => 55,
         '3' => 56, '4' => 57, '5' => 58, '6' => 59, '7' => 60,
         '8' => 61, '9' => 62, '+' => 63, '/' => 64, '=' => 65,
-        _   => unreachable!(),
+        _   => unreachable!(), 
     }
 }
 
+// TODO: improve error handling also this could be written with base64::CharacterSet
 fn base64_value_to_base64_char(n: u8) -> char {
     match n {
         01 => 'A', 02 => 'B', 03 => 'C', 04 => 'D', 05 => 'E',
