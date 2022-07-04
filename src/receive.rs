@@ -37,7 +37,7 @@ pub fn receive() {
 
         // TODO: Remove Logging:
         // println!("samples: {:?}", &samples);
-        // println!("pitch: {}", pitch_detection::zero_crossing(&samples, sample_rate));
+        // println!("pitch: {}", quantize(pitch_detection::zero_crossing(&samples, sample_rate)));
 
         if quantize(pitch_detection::zero_crossing(&samples, sample_rate)) == 440.0 {
             transmission_started = true;

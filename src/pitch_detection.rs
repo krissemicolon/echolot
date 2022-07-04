@@ -8,3 +8,7 @@ pub fn zero_crossing(samples: &Vec<f32>, sample_rate: u32) -> f32 {
     }
     ((1.0 / (samples.len() as f32 / (sample_rate as f32))) * zs as f32) / 2.0
 }
+
+pub fn autocorrelation(samples: &Vec<f32>, sample_rate: u32) -> f32 {
+    todo!();
+}

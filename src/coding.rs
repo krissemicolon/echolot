@@ -55,7 +55,57 @@ pub fn decode(transmission: Vec<f32>, sample_rate: u32) -> anyhow::Result<Vec<u8
 }
 
 pub fn quantize(freq: f32) -> f32 {
-    freq
+    // constructing coding schema frequencies
+    let mut freqs: Vec<f32> = Vec::new();
+    for n in 1..65 {
+        freqs.push(base64_to_freq(base64_value_to_base64_char(n as u8)));
+    }
+
+    // edge cases
+    if &freq <= freqs.get(0).unwrap() {
+        return *freqs.get(0).unwrap()
+    }
+    if &freq >= freqs.get(freqs.len() - 1).unwrap() {
+        return *freqs.get(freqs.len() - 1).unwrap()
+    }
+
+    // binary search for nearest match
+    let mut hi = freqs.len();
+    let mut lo = 0;
+    let mut mid = 0;
+    while lo < hi {
+        mid = (hi + lo) / 2;
+
+        if &freq == freqs.get(mid).unwrap() {
+            return *freqs.get(mid).unwrap();
+        }
+        if &freq < freqs.get(mid).unwrap() {
+            if mid > 0 && &freq > freqs.get(mid - 1).unwrap() {
+                if &freq - freqs.get(mid - 1).unwrap() >= freqs.get(mid).unwrap() - &freq {
+                    return *freqs.get(mid - 1).unwrap();
+                } else {
+                    return *freqs.get(mid).unwrap();
+                }
+            }
+            hi = mid;
+        } else {
+            if mid < freqs.len() - 1 && &freq  < freqs.get(mid + 1).unwrap() {
+                if &freq - freqs.get(mid).unwrap() >= freqs.get(mid + 1).unwrap() - &freq {
+                    return *freqs.get(mid).unwrap();
+                } else {
+                    return *freqs.get(mid + 1).unwrap();
+                }
+            }
+            lo = mid + 1;
+        }
+        if &freq > freqs.get(mid).unwrap() {
+            lo = mid + 1;
+        } else {
+            hi = mid;
+        }
+    }
+
+    *freqs.get(mid).unwrap()
 }
 
 fn base64_to_freq(c: char) -> f32 {
