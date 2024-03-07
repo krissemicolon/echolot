@@ -1,12 +1,15 @@
+mod packets;
+
 use base64::{engine::general_purpose, Engine};
 use clap::{Parser, Subcommand};
 use indicatif::ProgressBar;
+use packets::{FileInfo, FileTransmission};
 use rodio::{
     cpal::{self, traits::HostTrait},
     source::SineWave,
     DeviceTrait, OutputStream, Sink, Source,
 };
-use std::{fs, thread, time::Duration};
+use std::{fs, path::Path, thread, time::Duration};
 
 #[derive(Parser)]
 #[clap(version, about)]
@@ -21,7 +24,7 @@ pub enum Commands {
     #[command(arg_required_else_help = true)]
     Transmit {
         #[arg(required = true)]
-        path: String,
+        file: String,
     },
     /// Receive a File
     Receive,
@@ -31,8 +34,8 @@ fn main() {
     let args = Args::parse();
 
     match args.command {
-        Commands::Transmit { path } => {
-            transmit(path);
+        Commands::Transmit { file } => {
+            transmit(Path::new(&file));
         }
         Commands::Receive => {
             receive();
@@ -40,21 +43,41 @@ fn main() {
     }
 }
 
-fn transmit(path: String) {
+fn transmit(path: &Path) {
     let packets_prep_spinner = ProgressBar::new_spinner();
-    packets_prep_spinner.set_message(format!("Readying Packets for {}..", path));
+    packets_prep_spinner.set_message(format!("Readying Packets for {}..", path.display()));
     packets_prep_spinner.enable_steady_tick(Duration::from_millis(60));
 
+    let filename = path
+        .file_name()
+        .and_then(|f| f.to_str())
+        .unwrap_or_else(|| panic!("Unsupported Filename: {:?}", path))
+        .to_owned();
+    let metadata = path
+        .metadata()
+        .unwrap_or_else(|e| panic!("Could not retrieve Metadata from file: {:?}", e));
+    println!("{}", filename);
+    println!("{:?}", metadata.len());
     let content = match fs::read(&path) {
         Ok(contents) => contents,
         Err(err) => {
-            packets_prep_spinner
-                .abandon_with_message(format!("Unable to open the file '{}': {}", path, err));
+            packets_prep_spinner.abandon_with_message(format!(
+                "Unable to open the file '{}': {}",
+                path.display(),
+                err
+            ));
             return;
         }
     };
-    let encoded_content = general_purpose::STANDARD.encode(content);
+    let base64_content = general_purpose::STANDARD.encode(content);
 
+    let file_info_packet = FileInfo {
+        file_name: filename,
+        file_size: metadata.len(),
+        base64_content_size: base64_content.len(),
+        checksum: "TODO".to_string(),
+    };
+    let file_transmission_packet = FileTransmission { base64_content };
     packets_prep_spinner.finish_with_message("Packets are Ready");
 
     let handshake_spinner = ProgressBar::new_spinner();
@@ -72,8 +95,7 @@ fn transmit(path: String) {
     let default_device = match cpal::default_host().default_output_device() {
         Some(device) => device,
         None => {
-            audio_setup_spinner
-                .abandon_with_message(format!("Unable to Access Current Audio Device"));
+            audio_setup_spinner.abandon_with_message("Unable to Access Current Audio Device");
             return;
         }
     };
@@ -100,14 +122,13 @@ fn transmit(path: String) {
     if let Ok(name) = &default_device.name() {
         audio_setup_spinner.finish_with_message(format!("Using Audio Device: {}", name))
     } else {
-        audio_setup_spinner.finish_with_message(format!("Using Default Audio Device"))
+        audio_setup_spinner.finish_with_message("Using Default Audio Device")
     }
 
     let transmission_progress = ProgressBar::new_spinner();
     transmission_progress.set_message(format!(
         "Transmitting File.. len {}/{}",
-        0,
-        encoded_content.len()
+        0, file_info_packet.base64_content_size
     ));
     transmission_progress.enable_steady_tick(Duration::from_millis(60));
     //let transmission_progress = ProgressBar::new(encoded_content.len());
