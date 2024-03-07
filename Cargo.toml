@@ -1,0 +1,14 @@
+[package]
+name = "echolot"
+version = "0.2.0"
+edition = "2021"
+
+[dependencies]
+base64 = "0.22.0"
+# general cli
+clap = { version = "4.5.2", features = ["derive"] }
+# progress bars and spinners
+indicatif = "0.17.8"
+# interactive user prompts
+inquire = "0.7.0"
+rodio = "0.17.3"
