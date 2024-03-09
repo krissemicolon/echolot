@@ -190,7 +190,10 @@ fn receive() {
     handshake_spinner.enable_steady_tick(Duration::from_millis(60));
     /* */
     let initiation = Initiation;
-    sink.append(initiation.modulate());
+    initiation
+        .modulate()
+        .into_iter()
+        .for_each(|f| sink.append(f));
     sink.sleep_until_end();
     /* */
     handshake_spinner.finish_with_message("Established Handshake")
