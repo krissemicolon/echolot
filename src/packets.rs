@@ -1,8 +1,15 @@
+use std::time::Duration;
+
+use rodio::{
+    source::{SineWave, TakeDuration},
+    Source,
+};
+
 pub struct Initiation;
 
 #[derive(Debug)]
-pub struct Respnse {
-    file_info_size: u32,
+pub struct Response {
+    pub file_info_size: u32,
 }
 
 pub struct Agreement;
@@ -23,4 +30,19 @@ pub struct Confirmation {
 #[derive(Debug)]
 pub struct FileTransmission {
     pub base64_content: String,
+}
+
+pub trait Modulation {
+    fn modulate(&self) -> TakeDuration<SineWave>;
+    fn demodulate() -> Self;
+}
+
+impl Modulation for Initiation {
+    fn modulate(&self) -> TakeDuration<SineWave> {
+        SineWave::new(440.0).take_duration(Duration::from_secs_f32(0.25))
+    }
+
+    fn demodulate() -> Self {
+        todo!()
+    }
 }
