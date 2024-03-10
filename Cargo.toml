@@ -7,8 +7,10 @@ edition = "2021"
 base64 = "0.22.0"
 # general cli
 clap = { version = "4.5.2", features = ["derive"] }
+cpal = "0.15.3"
 # progress bars and spinners
 indicatif = "0.17.8"
 # interactive user prompts
 inquire = "0.7.0"
+# audio output
 rodio = "0.17.3"

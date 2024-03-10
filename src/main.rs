@@ -55,11 +55,13 @@ fn transmit(path: &Path) {
         .and_then(|f| f.to_str())
         .unwrap_or_else(|| panic!("Unsupported Filename: {:?}", path))
         .to_owned();
-    let metadata = path
+    let filesize = path
         .metadata()
-        .unwrap_or_else(|e| panic!("Could not retrieve Metadata from file: {}", e));
+        .ok()
+        .and_then(|m| Some(m.len()))
+        .unwrap_or_else(|| panic!("Could not retrieve Metadata from \"{filename}\""));
     println!("{}", filename);
-    println!("{:?}", metadata.len());
+    println!("{}", filesize);
     let content = match fs::read(&path) {
         Ok(contents) => contents,
         Err(err) => {
@@ -75,7 +77,7 @@ fn transmit(path: &Path) {
 
     let file_info_packet = FileInfo {
         file_name: filename,
-        file_size: metadata.len(),
+        file_size: filesize,
         base64_content_size: base64_content.len(),
         checksum: "TODO".to_string(),
     };
@@ -188,13 +190,11 @@ fn receive() {
     let handshake_spinner = ProgressBar::new_spinner();
     handshake_spinner.set_message("Establishing Handshake");
     handshake_spinner.enable_steady_tick(Duration::from_millis(60));
-    /* */
     let initiation = Initiation;
     initiation
         .modulate()
         .into_iter()
         .for_each(|f| sink.append(f));
     sink.sleep_until_end();
-    /* */
     handshake_spinner.finish_with_message("Established Handshake")
 }

@@ -32,7 +32,45 @@ pub struct FileTransmission {
     pub base64_content: String,
 }
 
-pub trait Modulation {
+pub enum PacketType {
+    Control,
+    Data,
+}
+
+pub trait Packet {
+    fn packet_type(&self) -> PacketType;
+}
+
+impl Packet for Initiation {
+    fn packet_type(&self) -> PacketType {
+        PacketType::Control
+    }
+}
+
+impl Packet for Response {
+    fn packet_type(&self) -> PacketType {
+        PacketType::Data
+    }
+}
+
+type Codec = String;
+
+pub trait Coding: Packet {
+    fn encode(&self) -> Codec;
+    fn decode(codec: Codec) -> Self;
+}
+
+impl Coding for Initiation {
+    fn encode(&self) -> Codec {
+        todo!()
+    }
+
+    fn decode(codec: Codec) -> Self {
+        todo!()
+    }
+}
+
+pub trait Modulation: Packet + Coding {
     fn modulate(&self) -> Vec<TakeDuration<SineWave>>;
     fn demodulate() -> Self;
 }
