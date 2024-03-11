@@ -1,14 +1,13 @@
+mod audio_devices;
+mod codec;
+mod frequency;
+mod modulation;
 mod packets;
 
-use base64::{engine::general_purpose, Engine};
 use clap::{Parser, Subcommand};
 use indicatif::ProgressBar;
-use packets::{FileInfo, FileTransmission, Initiation, Modulation};
-use rodio::{
-    cpal::{self, traits::HostTrait},
-    source::SineWave,
-    DeviceTrait, OutputStream, Sink, Source,
-};
+use packets::{FileInfo, FileTransmission, Initiation, Packet};
+use rodio::{source::SineWave, Source};
 use std::{fs, path::Path, thread, time::Duration};
 
 use crate::packets::Response;
@@ -62,7 +61,7 @@ fn transmit(path: &Path) {
         .unwrap_or_else(|| panic!("Could not retrieve Metadata from \"{filename}\""));
     println!("{}", filename);
     println!("{}", filesize);
-    let content = match fs::read(&path) {
+    let file = match fs::read(&path) {
         Ok(contents) => contents,
         Err(err) => {
             packets_prep_spinner.abandon_with_message(format!(
@@ -73,15 +72,13 @@ fn transmit(path: &Path) {
             return;
         }
     };
-    let base64_content = general_purpose::STANDARD.encode(content);
 
     let file_info_packet = FileInfo {
         file_name: filename,
         file_size: filesize,
-        base64_content_size: base64_content.len(),
         checksum: "TODO".to_string(),
     };
-    let file_transmission_packet = FileTransmission { base64_content };
+    let file_transmission_packet = FileTransmission { file };
     let response_packet = Response {
         file_info_size: todo!(),
     };
@@ -96,47 +93,23 @@ fn transmit(path: &Path) {
     handshake_spinner.finish_with_message("Established Handshake");
 
     let audio_setup_spinner = ProgressBar::new_spinner();
-    audio_setup_spinner.set_message("Setting up Audio..");
+    audio_setup_spinner.set_message("Setting up Audio Output..");
     audio_setup_spinner.enable_steady_tick(Duration::from_millis(60));
 
-    let default_device = match cpal::default_host().default_output_device() {
-        Some(device) => device,
-        None => {
-            audio_setup_spinner.abandon_with_message("Unable to Access Current Audio Device");
-            return;
-        }
-    };
-    let (_stream, stream_handle) = match OutputStream::try_from_device(&default_device) {
-        Ok(output_stream) => output_stream,
-        Err(err) => {
+    let audio_output = match audio_devices::AudioOutputDevice::default() {
+        Ok(audio_output) => {
             audio_setup_spinner
-                .abandon_with_message(format!("Unable to Access Current Audio Device: {}", err));
-            return;
+                .finish_with_message(format!("Using Audio Output Device: {}", audio_output.name));
+            audio_output
         }
-    };
-    let sink = match Sink::try_new(&stream_handle) {
-        Ok(sink) => sink,
         Err(err) => {
-            audio_setup_spinner.abandon_with_message(format!(
-                "Something went wrong while setting up Audio: {}",
-                err
-            ));
+            audio_setup_spinner.abandon_with_message(err);
             return;
         }
     };
-
-    // Print finish message with consideration for name retrieval returning Error
-    if let Ok(name) = &default_device.name() {
-        audio_setup_spinner.finish_with_message(format!("Using Audio Device: {}", name))
-    } else {
-        audio_setup_spinner.finish_with_message("Using Default Audio Device")
-    }
 
     let transmission_progress = ProgressBar::new_spinner();
-    transmission_progress.set_message(format!(
-        "Transmitting File.. len {}/{}",
-        0, file_info_packet.base64_content_size
-    ));
+    transmission_progress.set_message(format!("Transmitting File.. len {}/{}", 0, filesize));
     transmission_progress.enable_steady_tick(Duration::from_millis(60));
     //let transmission_progress = ProgressBar::new(encoded_content.len());
     //transmission_progress.set_message("Transmitting File..");
@@ -144,57 +117,37 @@ fn transmit(path: &Path) {
     let source = SineWave::new(440.0)
         .take_duration(Duration::from_secs_f32(0.25))
         .amplify(0.20);
-    sink.append(source);
-    sink.sleep_until_end();
+    audio_output.sink.append(source);
+    audio_output.sink.sleep_until_end();
     transmission_progress.finish_with_message("File has been transmitted");
 }
 
 fn receive() {
     let audio_setup_spinner = ProgressBar::new_spinner();
-    audio_setup_spinner.set_message("Setting up Audio..");
+    audio_setup_spinner.set_message("Setting up Audio Output..");
     audio_setup_spinner.enable_steady_tick(Duration::from_millis(60));
-
-    let default_device = match cpal::default_host().default_output_device() {
-        Some(device) => device,
-        None => {
-            audio_setup_spinner.abandon_with_message("Unable to Access Current Audio Device");
-            return;
-        }
-    };
-    let (_stream, stream_handle) = match OutputStream::try_from_device(&default_device) {
-        Ok(output_stream) => output_stream,
-        Err(err) => {
+    let audio_output = match audio_devices::AudioOutputDevice::default() {
+        Ok(audio_output) => {
             audio_setup_spinner
-                .abandon_with_message(format!("Unable to Access Current Audio Device: {}", err));
-            return;
+                .finish_with_message(format!("Using Audio Output Device: {}", audio_output.name));
+            audio_output
         }
-    };
-    let sink = match Sink::try_new(&stream_handle) {
-        Ok(sink) => sink,
         Err(err) => {
-            audio_setup_spinner.abandon_with_message(format!(
-                "Something went wrong while setting up Audio: {}",
-                err
-            ));
+            audio_setup_spinner.abandon_with_message(err);
             return;
         }
     };
-
-    // Print finish message with consideration for name retrieval returning Error
-    if let Ok(name) = &default_device.name() {
-        audio_setup_spinner.finish_with_message(format!("Using Audio Device: {}", name))
-    } else {
-        audio_setup_spinner.finish_with_message("Using Default Audio Device")
-    }
 
     let handshake_spinner = ProgressBar::new_spinner();
     handshake_spinner.set_message("Establishing Handshake");
     handshake_spinner.enable_steady_tick(Duration::from_millis(60));
+    /*
     let initiation = Initiation;
     initiation
         .modulate()
         .into_iter()
-        .for_each(|f| sink.append(f));
-    sink.sleep_until_end();
+        .for_each(|f| audio_output.sink.append(f));
+    audio_output.sink.sleep_until_end();
+    */
     handshake_spinner.finish_with_message("Established Handshake")
 }
