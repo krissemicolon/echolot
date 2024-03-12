@@ -16,7 +16,7 @@ pub fn modulate(packet: &Packet) -> Vec<Frequency> {
         },
         Data(data) => data
             .iter()
-            .map(|byte| Frequency::new(*byte as f32 * 10.0 + 100.0))
+            .map(|byte| Frequency::new(*byte as f32 * 10.0 + 300.0))
             .collect(),
     }
 }

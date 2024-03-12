@@ -10,7 +10,7 @@ pub enum Packet {
     Data(Vec<u8>),
 }
 
-pub fn get_binary_data(packet: Packet) -> Option<Vec<u8>> {
+pub fn get_binary_data(packet: &Packet) -> Option<&Vec<u8>> {
     match packet {
         Packet::Control(_) => None,
         Packet::Data(data) => Some(data),

@@ -2,6 +2,7 @@ use rodio::source::SineWave;
 
 /// Wrapper around Rodio's SineWave
 /// because it doesnt expose frequency field
+#[derive(Debug)]
 pub struct Frequency {
     pub freq: f32,
     pub sine_wave: SineWave,

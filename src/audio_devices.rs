@@ -1,9 +1,10 @@
 use cpal::traits::HostTrait;
-use rodio::{DeviceTrait, OutputStream, Sink};
+use rodio::{DeviceTrait, OutputStream, OutputStreamHandle, Sink};
 
 pub struct AudioOutputDevice {
     pub name: String,
     pub sink: Sink,
+    _stream: (OutputStream, OutputStreamHandle),
 }
 
 impl AudioOutputDevice {
@@ -40,7 +41,11 @@ impl AudioOutputDevice {
             }
         };
 
-        Ok(Self { name, sink })
+        Ok(Self {
+            name,
+            sink,
+            _stream: (_stream, stream_handle),
+        })
     }
 }
 
