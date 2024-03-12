@@ -6,11 +6,14 @@ mod packets;
 
 use clap::{Parser, Subcommand};
 use indicatif::ProgressBar;
-use packets::{FileInfo, FileTransmission, Initiation, Packet};
+use packets::{FileInfo, FileTransmission};
 use rodio::{source::SineWave, Source};
 use std::{fs, path::Path, thread, time::Duration};
 
-use crate::packets::Response;
+use crate::{
+    codec::Codec,
+    packets::{get_binary_data, Response},
+};
 
 #[derive(Parser)]
 #[clap(version, about)]
@@ -57,11 +60,11 @@ fn transmit(path: &Path) {
     let filesize = path
         .metadata()
         .ok()
-        .and_then(|m| Some(m.len()))
+        .map(|m| m.len())
         .unwrap_or_else(|| panic!("Could not retrieve Metadata from \"{filename}\""));
     println!("{}", filename);
     println!("{}", filesize);
-    let file = match fs::read(&path) {
+    let file = match fs::read(path) {
         Ok(contents) => contents,
         Err(err) => {
             packets_prep_spinner.abandon_with_message(format!(
@@ -76,12 +79,18 @@ fn transmit(path: &Path) {
     let file_info_packet = FileInfo {
         file_name: filename,
         file_size: filesize,
-        checksum: "TODO".to_string(),
+        checksum: crc32fast::hash(&file),
     };
+    let file_info_packet_encoded = file_info_packet.encode();
+
     let file_transmission_packet = FileTransmission { file };
+    let file_transmission_packet_encoded = file_transmission_packet.encode();
+
     let response_packet = Response {
-        file_info_size: todo!(),
+        file_info_size: get_binary_data(file_info_packet_encoded).unwrap().len(),
     };
+    let response_packet_encoded = response_packet.encode();
+
     packets_prep_spinner.finish_with_message("Packets are Ready");
 
     let handshake_spinner = ProgressBar::new_spinner();
@@ -149,5 +158,5 @@ fn receive() {
         .for_each(|f| audio_output.sink.append(f));
     audio_output.sink.sleep_until_end();
     */
-    handshake_spinner.finish_with_message("Established Handshake")
+    handshake_spinner.finish_with_message("Established Handshake");
 }

@@ -10,11 +10,18 @@ pub enum Packet {
     Data(Vec<u8>),
 }
 
+pub fn get_binary_data(packet: Packet) -> Option<Vec<u8>> {
+    match packet {
+        Packet::Control(_) => None,
+        Packet::Data(data) => Some(data),
+    }
+}
+
 pub struct Initiation;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct Response {
-    pub file_info_size: u32,
+    pub file_info_size: usize,
 }
 
 pub struct Agreement;
@@ -23,7 +30,7 @@ pub struct Agreement;
 pub struct FileInfo {
     pub file_name: String,
     pub file_size: u64,
-    pub checksum: String,
+    pub checksum: u32,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]

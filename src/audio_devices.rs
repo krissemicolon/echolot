@@ -10,7 +10,7 @@ impl AudioOutputDevice {
     pub fn default() -> Result<Self, String> {
         let default_device = match cpal::default_host().default_output_device() {
             Some(device) => device,
-            None => return Err(format!("No Audio Output Device Available")),
+            None => return Err("No Audio Output Device Available".to_string()),
         };
         let (_stream, stream_handle) = match OutputStream::try_from_device(&default_device) {
             Ok(output_stream) => output_stream,
@@ -52,7 +52,7 @@ impl AudioInputDevice {
     pub fn default() -> Result<Self, String> {
         let default_device = match cpal::default_host().default_input_device() {
             Some(device) => device,
-            None => return Err(format!("No Audio Input Device Available")),
+            None => return Err("No Audio Input Device Available".to_string()),
         };
 
         todo!();
