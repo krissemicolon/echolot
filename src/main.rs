@@ -7,9 +7,8 @@ mod playback;
 
 use clap::{Parser, Subcommand};
 use indicatif::ProgressBar;
-use packets::{FileInfo, FileTransmission};
+use packets::{ControlPacket, FileInfo, FileTransmission, Packet};
 use playback::playback;
-use rodio::Source;
 use std::{fs, path::Path, thread, time::Duration};
 
 use crate::{
@@ -17,6 +16,8 @@ use crate::{
     modulation::modulate,
     packets::{get_binary_data, Response},
 };
+
+const BYTE_DURATION_MS: u64 = 100;
 
 #[derive(Parser)]
 #[clap(version, about)]
@@ -94,21 +95,38 @@ fn transmit(path: &Path) {
 
     packets_prep_spinner.finish_with_message("Packets are Ready");
 
-    let audio_setup_spinner = ProgressBar::new_spinner();
-    audio_setup_spinner.set_message("Setting up Audio Output..");
-    audio_setup_spinner.enable_steady_tick(Duration::from_millis(60));
+    let audio_output_setup_spinner = ProgressBar::new_spinner();
+    audio_output_setup_spinner.set_message("Setting up Audio Output..");
+    audio_output_setup_spinner.enable_steady_tick(Duration::from_millis(60));
 
     let audio_output = match audio_devices::AudioOutputDevice::default() {
         Ok(audio_output) => {
-            audio_setup_spinner
+            audio_output_setup_spinner
                 .finish_with_message(format!("Using Audio Output Device: {}", audio_output.name));
             audio_output
         }
         Err(err) => {
-            audio_setup_spinner.abandon_with_message(err);
+            audio_output_setup_spinner.abandon_with_message(err);
             return;
         }
     };
+
+    let audio_input_setup_spinner = ProgressBar::new_spinner();
+    audio_input_setup_spinner.set_message("Setting up Input Output..");
+    audio_input_setup_spinner.enable_steady_tick(Duration::from_millis(60));
+
+    /*
+    let audio_input = match audio_devices::AudioInputDevice::default() {
+        Ok(audio_input) => {
+            audio_input_setup_spinner
+                .finish_with_message(format!("Using Audio Input Device: {}", audio_input.name));
+            audio_input
+        }
+        Err(err) => {
+            audio_input_setup_spinner.abandon_with_message(err);
+            return;
+        }
+        }; */
 
     let handshake_spinner = ProgressBar::new_spinner();
     handshake_spinner.set_message("Listening for Receiver's Handshake Initiation");
@@ -124,14 +142,22 @@ fn transmit(path: &Path) {
             .map(|f| f.sine_wave)
             .collect(),
         0.25,
-        Duration::from_millis(100),
+        Duration::from_millis(BYTE_DURATION_MS),
         &audio_output,
     );
     audio_output.sink.sleep_until_end();
     handshake_spinner.set_message("Listening for Receiver's Handshake Agreement");
 
     thread::sleep(Duration::from_millis(500)); // replace with agreement demodulation
-
+                                               /*
+                                                   audio_input
+                                                       .stream
+                                                       .play()
+                                                       .expect("Could Not Start Listening from Audio Input");
+                                                   // Let recording go for roughly three seconds.
+                                                   std::thread::sleep(std::time::Duration::from_secs(3));
+                                                   drop(audio_input.stream);
+                                               */
     handshake_spinner.finish_with_message("Established Handshake");
 
     playback(
@@ -140,7 +166,7 @@ fn transmit(path: &Path) {
             .map(|f| f.sine_wave)
             .collect(),
         0.25,
-        Duration::from_millis(100),
+        Duration::from_millis(BYTE_DURATION_MS),
         &audio_output,
     );
     audio_output.sink.sleep_until_end();
@@ -163,7 +189,7 @@ fn transmit(path: &Path) {
             .map(|f| f.sine_wave)
             .collect(),
         0.25,
-        Duration::from_millis(100),
+        Duration::from_millis(BYTE_DURATION_MS),
         &audio_output,
     );
     audio_output.sink.sleep_until_end();
@@ -190,13 +216,18 @@ fn receive() {
     let handshake_spinner = ProgressBar::new_spinner();
     handshake_spinner.set_message("Establishing Handshake");
     handshake_spinner.enable_steady_tick(Duration::from_millis(60));
-    /*
-    let initiation = Initiation;
-    initiation
-        .modulate()
-        .into_iter()
-        .for_each(|f| audio_output.sink.append(f));
-    audio_output.sink.sleep_until_end();
-    */
+
+    let initation_packet = Packet::Control(ControlPacket::Initiation);
+
+    playback(
+        modulate(&initation_packet)
+            .into_iter()
+            .map(|f| f.sine_wave)
+            .collect(),
+        0.25,
+        Duration::from_millis(BYTE_DURATION_MS),
+        &audio_output,
+    );
+
     handshake_spinner.finish_with_message("Established Handshake");
 }

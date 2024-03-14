@@ -16,3 +16,15 @@ impl Frequency {
         }
     }
 }
+
+impl From<Frequency> for f32 {
+    fn from(item: Frequency) -> Self {
+        item.freq
+    }
+}
+
+impl PartialEq for Frequency {
+    fn eq(&self, other: &Self) -> bool {
+        self.freq == other.freq
+    }
+}

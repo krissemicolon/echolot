@@ -1,11 +1,13 @@
 use crate::packets::{
-    Agreement, Confirmation, ControlPacket, FileInfo, FileTransmission, Initiation, Packet,
-    Response,
+    get_binary_data, Agreement, Confirmation, ControlPacket, FileInfo, FileTransmission,
+    Initiation, Packet, Response,
 };
 
 pub trait Codec {
     fn encode(&self) -> Packet;
-    fn decode(packet: Packet) -> Self;
+    fn decode(packet: Packet) -> Option<Self>
+    where
+        Self: Sized;
 }
 
 impl Codec for Initiation {
@@ -13,8 +15,9 @@ impl Codec for Initiation {
         Packet::Control(ControlPacket::Initiation)
     }
 
-    fn decode(packet: Packet) -> Self {
-        Self {}
+    fn decode(packet: Packet) -> Option<Self> {
+        // Some(Self {});
+        todo!()
     }
 }
 
@@ -25,9 +28,8 @@ impl Codec for Response {
         )
     }
 
-    fn decode(packet: Packet) -> Self {
-        //bincode::deserialize(packet::Data(e))
-        todo!()
+    fn decode(packet: Packet) -> Option<Self> {
+        bincode::deserialize(get_binary_data(&packet).unwrap()).ok()
     }
 }
 
@@ -36,8 +38,9 @@ impl Codec for Agreement {
         Packet::Control(ControlPacket::Agreement)
     }
 
-    fn decode(packet: Packet) -> Self {
-        Self {}
+    fn decode(packet: Packet) -> Option<Self> {
+        // Some(Self {});
+        todo!()
     }
 }
 
@@ -48,8 +51,8 @@ impl Codec for FileInfo {
         )
     }
 
-    fn decode(packet: Packet) -> Self {
-        todo!()
+    fn decode(packet: Packet) -> Option<Self> {
+        bincode::deserialize(get_binary_data(&packet).unwrap()).ok()
     }
 }
 
@@ -60,8 +63,8 @@ impl Codec for Confirmation {
         )
     }
 
-    fn decode(packet: Packet) -> Self {
-        todo!()
+    fn decode(packet: Packet) -> Option<Self> {
+        bincode::deserialize(get_binary_data(&packet).unwrap()).ok()
     }
 }
 
@@ -73,7 +76,7 @@ impl Codec for FileTransmission {
         )
     }
 
-    fn decode(packet: Packet) -> Self {
-        todo!()
+    fn decode(packet: Packet) -> Option<Self> {
+        bincode::deserialize(get_binary_data(&packet).unwrap()).ok()
     }
 }
