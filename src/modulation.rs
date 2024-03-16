@@ -27,6 +27,7 @@ fn demodulate(freqs: Vec<Frequency>, expected_packet: Packet) -> Option<Packet> 
     match &expected_packet {
         Control(_) => {
             let control_packet_freq = modulate(&expected_packet).pop().map(|f| f.freq).unwrap();
+            assert!(freqs.len() != 0);
             let freq_mean = freqs.iter().map(|f| f.freq).sum::<f32>() / freqs.len() as f32;
             // ±5Hz
             if ((freq_mean - 5.0)..=(freq_mean + 5.0)).contains(&control_packet_freq) {
@@ -38,7 +39,7 @@ fn demodulate(freqs: Vec<Frequency>, expected_packet: Packet) -> Option<Packet> 
         Data(_) => {
             let data: Vec<u8> = freqs
                 .into_iter()
-                .map(|f| (f.freq / 10.0 - 300.0) as u8)
+                .map(|f| ((f.freq - 300.0) / 10.0) as u8)
                 .collect();
             Some(Packet::Data(data))
         }
@@ -47,7 +48,10 @@ fn demodulate(freqs: Vec<Frequency>, expected_packet: Packet) -> Option<Packet> 
 
 #[cfg(test)]
 mod tests {
-    use crate::{codec::Codec, packets::Response};
+    use crate::{
+        codec::Codec,
+        packets::Response,
+    };
 
     use super::*;
 
