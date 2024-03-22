@@ -1,5 +1,6 @@
 mod audio_devices;
 mod codec;
+mod fft;
 mod frequency;
 mod modulation;
 mod packets;
@@ -115,7 +116,6 @@ fn transmit(path: &Path) {
     audio_input_setup_spinner.set_message("Setting up Input Output..");
     audio_input_setup_spinner.enable_steady_tick(Duration::from_millis(60));
 
-    /*
     let audio_input = match audio_devices::AudioInputDevice::default() {
         Ok(audio_input) => {
             audio_input_setup_spinner
@@ -126,13 +126,19 @@ fn transmit(path: &Path) {
             audio_input_setup_spinner.abandon_with_message(err);
             return;
         }
-        }; */
+    };
 
     let handshake_spinner = ProgressBar::new_spinner();
+
+    match audio_input.start() {
+        Ok(_) => handshake_spinner.set_message("Listening for Receiver's Handshake Initiation"),
+        Err(e) => panic!("Could not start microphone input: {}", e),
+    }
+
     handshake_spinner.set_message("Listening for Receiver's Handshake Initiation");
     handshake_spinner.enable_steady_tick(Duration::from_millis(60));
 
-    thread::sleep(Duration::from_millis(500)); // replace with initiation demodulation
+    thread::sleep(Duration::from_millis(5000)); // replace with initiation demodulation
 
     handshake_spinner.set_message("Received Initiation. Transmitting Response");
 

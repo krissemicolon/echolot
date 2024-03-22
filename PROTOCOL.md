@@ -18,9 +18,10 @@ transmittingDevice echolot: Sending Response..
 
 [
 Response
+
 - reserved freq
 - size of Fileinfo
-]
+  ]
 
 receivingDevice echolot: Handshake Established!
 
@@ -33,10 +34,11 @@ transmittingDevice echolot: Transmitting Fileinfo
 
 [
 Fileinfo
+
 - filename
 - filesize
 - checksum
-]
+  ]
 
 receivingDevice echolot: [========>----] Receiving Fileinfo
 receivingDevice echolot: Pretty Print file info here + where file gets saved
@@ -55,9 +57,10 @@ transmittingDevice echolot: [=>--------] Transmitting paper.pdf..
 
 [
 Filetransmission
+
 - file as base64 string
 - checksum
-]
+  ]
 
 receivingDevice echolot: [========>----] Receiving File paper.pdf
 receivingDevice echolot: Checking checksum..

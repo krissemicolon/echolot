@@ -1,7 +1,16 @@
-use cpal::{traits::HostTrait, FromSample, Stream};
-use dasp_sample::Sample;
-use rodio::{DeviceTrait, OutputStream, OutputStreamHandle, Sink};
-use rtrb::{Consumer, Producer, RingBuffer};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+use cpal::traits::HostTrait;
+use cpal::{
+    traits::{DeviceTrait, StreamTrait},
+    StreamConfig,
+};
+use cpal::{PlayStreamError, SampleRate, Stream};
+use rodio::{OutputStream, OutputStreamHandle, Sink};
+use std::sync::mpsc::{self, Receiver, Sender};
+
+use crate::fft::freq_fft;
 
 pub struct AudioOutputDevice {
     pub name: String,
@@ -11,37 +20,23 @@ pub struct AudioOutputDevice {
 
 impl AudioOutputDevice {
     pub fn default() -> Result<Self, String> {
-        let device = match cpal::default_host().default_output_device() {
-            Some(device) => device,
-            None => return Err("No Audio Output Device Available".to_string()),
-        };
-        let (_stream, stream_handle) = match OutputStream::try_from_device(&device) {
-            Ok(output_stream) => output_stream,
-            Err(err) => {
-                return Err(format!(
-                    "Unable to Access Current Audio Output Device: {}",
-                    err
-                ))
-            }
-        };
-        let sink = match Sink::try_new(&stream_handle) {
-            Ok(sink) => sink,
-            Err(err) => {
-                return Err(format!(
-                    "Something went wrong while setting up Audio Output Device: {}",
-                    err
-                ))
-            }
-        };
-        let name = match device.name() {
-            Ok(name) => name,
-            Err(err) => {
-                return Err(format!(
-                    "Unable to Retrieve Audio Output Device Name: {}",
-                    err
-                ))
-            }
-        };
+        let device = cpal::default_host()
+            .default_output_device()
+            .ok_or_else(|| "No Audio Output Device Available".to_string())?;
+
+        let (_stream, stream_handle) = OutputStream::try_from_device(&device)
+            .map_err(|err| format!("Unable to Access Current Audio Output Device: {}", err))?;
+
+        let sink = Sink::try_new(&stream_handle).map_err(|err| {
+            format!(
+                "Something went wrong while setting up Audio Output Device: {}",
+                err
+            )
+        })?;
+
+        let name = device
+            .name()
+            .map_err(|err| format!("Unable to Retrieve Audio Output Device Name: {}", err))?;
 
         Ok(Self {
             name,
@@ -53,85 +48,77 @@ impl AudioOutputDevice {
 
 pub struct AudioInputDevice {
     pub name: String,
-    pub consumer: Consumer<f32>,
     pub stream: Stream,
+    pub sample_rate: SampleRate,
+    pub buffer: Arc<Mutex<Vec<f32>>>,
+    pub rx: Receiver<Vec<f32>>,
 }
-/*
+
 impl AudioInputDevice {
     pub fn default() -> Result<Self, String> {
-        let (mut producer, mut consumer) = RingBuffer::new(1024);
+        let host = cpal::default_host();
+        let device = host
+            .default_input_device()
+            .ok_or("No Audio Input Device Available".to_string())?;
+        let config = device
+            .default_input_config()
+            .map_err(|_| "Failed to get default input config".to_string())?;
+        let name = device
+            .name()
+            .map_err(|e| format!("Unable to Retrieve Audio Input Device Name: {}", e))?;
 
-        let write_data_fn = move |data: f32, _: &_| producer.push(data).unwrap();
-        let err_fn = move |err| {
-            eprintln!("An Error Occurred On Audio Input: {}", err);
-        };
+        let (tx, rx) = mpsc::channel();
+        let buffer = Arc::new(Mutex::new(Vec::new()));
+        let buffer_clone = Arc::clone(&buffer);
 
-        let device = match cpal::default_host().default_input_device() {
-            Some(device) => device,
-            None => return Err("No Audio Input Device Available".to_string()),
-        };
-        let config = match device.default_input_config() {
-            Ok(config) => config,
-            Err(_) => return Err("Failed to get default input config".to_string()),
-        };
+        let err_fn = move |err| eprintln!("An Error Occurred On Audio Input: {}", err);
 
-        let name = match device.name() {
-            Ok(name) => name,
-            Err(err) => {
-                return Err(format!(
-                    "Unable to Retrieve Audio Input Device Name: {}",
-                    err
-                ))
-            }
-        };
-
-        let stream = match config.sample_format() {
+        let sample_format = config.sample_format();
+        let stream_config: StreamConfig = config.into();
+        let sample_rate = stream_config.sample_rate;
+        let stream = match sample_format {
             cpal::SampleFormat::F32 => device
                 .build_input_stream(
-                    &config.into(),
-                    move |data, _: &_| {
-                        write_input_data(
-                            data.iter().map(|s| SupportedSample::F32(s)).collect(),
-                            &producer,
-                        )
-                    },
+                    &stream_config,
+                    move |data: &[f32], _: &_| Self::write_input_data(data, &tx),
                     err_fn,
-                    None,
+                    Some(Duration::from_millis(10)),
                 )
-                .unwrap(),
-            sample_format => return Err(format!("Unsupported sample format '{sample_format}'")),
+                .map_err(|e| e.to_string())?,
+            _ => return Err("Unsupported sample format".to_string()),
         };
 
         Ok(Self {
             name,
-            consumer,
             stream,
+            sample_rate,
+            buffer: buffer_clone,
+            rx,
         })
     }
-}
 
-enum SupportedSample {
-    F32(f32),
-    I16(i16),
-    U16(u16),
-}
+    fn write_input_data(data: &[f32], tx: &Sender<Vec<f32>>) {
+        println!("{:?}", freq_fft(data, 48000));
+        if let Err(e) = tx.send(data.to_vec()) {
+            eprintln!("Failed to send data to buffer: {}", e);
+        }
+    }
 
-impl From<SupportedSample> for f32 {
-    fn from(sample: SupportedSample) -> Self {
-        match sample {
-            SupportedSample::F32(val) => val,
-            SupportedSample::I16(val) => f32::from_sample(val),
-            SupportedSample::U16(val) => f32::from_sample(val),
+    /// Starts the audio input stream.
+    pub fn start(&self) -> Result<(), PlayStreamError> {
+        self.stream.play()
+    }
+
+    /// Reads the buffered audio data.
+    pub fn read_buffer(&self) -> Vec<f32> {
+        self.buffer.lock().unwrap().clone()
+    }
+
+    /// Updates the internal buffer with data from the receiver.
+    pub fn update_buffer(&self) {
+        while let Ok(data) = self.rx.try_recv() {
+            let mut buffer = self.buffer.lock().unwrap();
+            buffer.extend(data);
         }
     }
 }
-
-fn write_input_data(input: &[SupportedSample], producer: &Producer<f32>) {
-    input.iter().for_each(|&sample| {
-        let converted_sample = f32::from(sample);
-        producer.push(converted_sample).unwrap_or_else(|_| {
-            eprintln!("Failed to push sample");
-        });
-    });
-}
- */
