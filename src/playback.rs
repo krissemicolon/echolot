@@ -13,7 +13,7 @@ pub fn playback(
     duration: Duration,
     audio_output: &AudioOutputDevice,
 ) {
-    match promote_current_thread_to_real_time(0, 44100) {
+    match promote_current_thread_to_real_time(0, audio_output.sample_rate.0) {
         Ok(h) => {
             //println!("this thread is now bumped to real-time priority."); // maybe integrate logging
 

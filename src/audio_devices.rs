@@ -15,6 +15,7 @@ use crate::fft::freq_fft;
 pub struct AudioOutputDevice {
     pub name: String,
     pub sink: Sink,
+    pub sample_rate: SampleRate,
     _stream: (OutputStream, OutputStreamHandle),
 }
 
@@ -23,24 +24,26 @@ impl AudioOutputDevice {
         let device = cpal::default_host()
             .default_output_device()
             .ok_or_else(|| "No Audio Output Device Available".to_string())?;
-
+        let config = device
+            .default_output_config()
+            .map_err(|err| format!("Failed to get default audio output config: {}", err))?;
         let (_stream, stream_handle) = OutputStream::try_from_device(&device)
             .map_err(|err| format!("Unable to Access Current Audio Output Device: {}", err))?;
-
         let sink = Sink::try_new(&stream_handle).map_err(|err| {
             format!(
                 "Something went wrong while setting up Audio Output Device: {}",
                 err
             )
         })?;
-
         let name = device
             .name()
             .map_err(|err| format!("Unable to Retrieve Audio Output Device Name: {}", err))?;
+        let sample_rate = config.sample_rate();
 
         Ok(Self {
             name,
             sink,
+            sample_rate,
             _stream: (_stream, stream_handle),
         })
     }
