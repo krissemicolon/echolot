@@ -23,7 +23,7 @@ pub fn modulate(packet: &Packet) -> Vec<Frequency> {
 
 /// 266-MFSK Demodulation for data packets
 /// with reserved frequencies for control packets
-fn demodulate(freqs: Vec<Frequency>, expected_packet: Packet) -> Option<Packet> {
+pub fn demodulate(freqs: Vec<Frequency>, expected_packet: Packet) -> Option<Packet> {
     if freqs.is_empty() {
         return None;
     }

@@ -2,6 +2,7 @@ use rodio::source::SineWave;
 
 /// Wrapper around Rodio's SineWave
 /// because it doesnt expose frequency field
+/// this is a memory overhead that could be improved
 #[derive(Debug)]
 pub struct Frequency {
     pub freq: f32,

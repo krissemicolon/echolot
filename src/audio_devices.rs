@@ -10,7 +10,7 @@ use cpal::{PlayStreamError, SampleRate, Stream};
 use rodio::{OutputStream, OutputStreamHandle, Sink};
 use std::sync::mpsc::{self, Receiver, Sender};
 
-use crate::fft::freq_fft;
+use crate::fft::FFT_WINDOW;
 
 pub struct AudioOutputDevice {
     pub name: String,
@@ -53,7 +53,7 @@ pub struct AudioInputDevice {
     pub name: String,
     pub stream: Stream,
     pub sample_rate: SampleRate,
-    pub buffer: Arc<Mutex<Vec<f32>>>,
+    buffer: Arc<Mutex<Vec<f32>>>,
     pub rx: Receiver<Vec<f32>>,
 }
 
@@ -69,7 +69,6 @@ impl AudioInputDevice {
         let name = device
             .name()
             .map_err(|e| format!("Unable to Retrieve Audio Input Device Name: {}", e))?;
-
         let (tx, rx) = mpsc::channel();
         let buffer = Arc::new(Mutex::new(Vec::new()));
         let buffer_clone = Arc::clone(&buffer);
@@ -79,6 +78,7 @@ impl AudioInputDevice {
         let sample_format = config.sample_format();
         let stream_config: StreamConfig = config.into();
         let sample_rate = stream_config.sample_rate;
+
         let stream = match sample_format {
             cpal::SampleFormat::F32 => device
                 .build_input_stream(
@@ -101,9 +101,9 @@ impl AudioInputDevice {
     }
 
     fn write_input_data(data: &[f32], tx: &Sender<Vec<f32>>) {
-        println!("{:?}", freq_fft(data, 48000));
+        println!("{:?}", data);
         if let Err(e) = tx.send(data.to_vec()) {
-            eprintln!("Failed to send data to buffer: {}", e);
+            panic!("Failed To Send Data To Buffer: {}", e);
         }
     }
 
@@ -113,8 +113,17 @@ impl AudioInputDevice {
     }
 
     /// Reads the buffered audio data.
-    pub fn read_buffer(&self) -> Vec<f32> {
-        self.buffer.lock().unwrap().clone()
+    pub fn read_buffer(&self) -> [f32; FFT_WINDOW] {
+        let buf = self.buffer.lock().unwrap().clone();
+        let x = buf.try_into().unwrap_or_else(|v: Vec<f32>| {
+            panic!(
+                "Expected a Audio Buffer of length {} but it was {}",
+                FFT_WINDOW,
+                v.len()
+            )
+        });
+        print!("{:?}", x); // TODO
+        x
     }
 
     /// Updates the internal buffer with data from the receiver.

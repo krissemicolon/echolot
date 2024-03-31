@@ -7,13 +7,16 @@ mod packets;
 mod playback;
 
 use clap::{Parser, Subcommand};
+use fft::freq_fft;
 use indicatif::ProgressBar;
 use packets::{ControlPacket, FileInfo, FileTransmission, Packet};
 use playback::playback;
-use std::{fs, path::Path, thread, time::Duration};
+use std::path::Path;
+use std::{fs, thread, time::Duration};
 
 use crate::{
     codec::Codec,
+    modulation::demodulate,
     modulation::modulate,
     packets::{get_binary_data, Response},
 };
@@ -129,16 +132,25 @@ fn transmit(path: &Path) {
     };
 
     let handshake_spinner = ProgressBar::new_spinner();
+    handshake_spinner.enable_steady_tick(Duration::from_millis(60));
 
     match audio_input.start() {
         Ok(_) => handshake_spinner.set_message("Listening for Receiver's Handshake Initiation"),
-        Err(e) => panic!("Could not start microphone input: {}", e),
+        Err(e) => panic!("Could Not Start Listening To Microphone: {}", e),
     }
+    thread::sleep(Duration::from_millis(50000)); // replace with agreement demodulation
 
-    handshake_spinner.set_message("Listening for Receiver's Handshake Initiation");
-    handshake_spinner.enable_steady_tick(Duration::from_millis(60));
+    let calc_freq = || {
+        vec![freq_fft(
+            audio_input.read_buffer(),
+            audio_input.sample_rate.0,
+        )]
+    };
 
-    thread::sleep(Duration::from_millis(5000)); // replace with initiation demodulation
+    audio_input.update_buffer();
+    while demodulate(calc_freq(), Packet::Control(ControlPacket::Initiation)).is_none() {
+        audio_input.update_buffer();
+    }
 
     handshake_spinner.set_message("Received Initiation. Transmitting Response");
 
@@ -155,15 +167,7 @@ fn transmit(path: &Path) {
     handshake_spinner.set_message("Listening for Receiver's Handshake Agreement");
 
     thread::sleep(Duration::from_millis(500)); // replace with agreement demodulation
-                                               /*
-                                                   audio_input
-                                                       .stream
-                                                       .play()
-                                                       .expect("Could Not Start Listening from Audio Input");
-                                                   // Let recording go for roughly three seconds.
-                                                   std::thread::sleep(std::time::Duration::from_secs(3));
-                                                   drop(audio_input.stream);
-                                               */
+
     handshake_spinner.finish_with_message("Established Handshake");
 
     playback(

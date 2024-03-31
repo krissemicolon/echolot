@@ -15,8 +15,6 @@ pub fn playback(
 ) {
     match promote_current_thread_to_real_time(0, audio_output.sample_rate.0) {
         Ok(h) => {
-            //println!("this thread is now bumped to real-time priority."); // maybe integrate logging
-
             sines.into_iter().for_each(|sin| {
                 audio_output
                     .sink
@@ -25,9 +23,7 @@ pub fn playback(
             audio_output.sink.sleep_until_end();
 
             match demote_current_thread_from_real_time(h) {
-                Ok(_) => {
-                    //println!("this thread is now bumped back to normal.") // maybe integrate logging
-                }
+                Ok(_) => (),
                 Err(_) => {
                     panic!("Could not bring the thread back to normal priority.")
                 }
