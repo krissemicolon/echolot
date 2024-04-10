@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use std::thread;
 use std::time::Duration;
 
 use cpal::traits::HostTrait;
@@ -8,9 +9,10 @@ use cpal::{
 };
 use cpal::{PlayStreamError, SampleRate, Stream};
 use rodio::{OutputStream, OutputStreamHandle, Sink};
+use rtrb::{Consumer, PopError, Producer, PushError, RingBuffer};
 use std::sync::mpsc::{self, Receiver, Sender};
 
-use crate::fft::FFT_WINDOW;
+use crate::fft::{freq_fft, freq_fft_legacy, FFT_WINDOW};
 
 pub struct AudioOutputDevice {
     pub name: String,
@@ -53,8 +55,7 @@ pub struct AudioInputDevice {
     pub name: String,
     pub stream: Stream,
     pub sample_rate: SampleRate,
-    buffer: Arc<Mutex<Vec<f32>>>,
-    pub rx: Receiver<Vec<f32>>,
+    pub consumer: Consumer<f32>,
 }
 
 impl AudioInputDevice {
@@ -69,9 +70,7 @@ impl AudioInputDevice {
         let name = device
             .name()
             .map_err(|e| format!("Unable to Retrieve Audio Input Device Name: {}", e))?;
-        let (tx, rx) = mpsc::channel();
-        let buffer = Arc::new(Mutex::new(Vec::new()));
-        let buffer_clone = Arc::clone(&buffer);
+        let (mut producer, mut consumer) = RingBuffer::<f32>::new(2 * FFT_WINDOW);
 
         let err_fn = move |err| eprintln!("An Error Occurred On Audio Input: {}", err);
 
@@ -83,7 +82,19 @@ impl AudioInputDevice {
             cpal::SampleFormat::F32 => device
                 .build_input_stream(
                     &stream_config,
-                    move |data: &[f32], _: &_| Self::write_input_data(data, &tx),
+                    move |data: &[f32], _: &_| {
+			/*
+                        data.into_iter().for_each(|x| {
+                            //producer.push(x.to_owned()).expect("Internal Audio Error!")
+			    print!("{}", x);
+                    })
+			 */
+			print!("{:?}\n\n", data) ;
+			println!("{}", freq_fft_legacy(&data, 48000));
+			
+			thread::sleep(Duration::from_secs(1));
+			panic!();
+                    },
                     err_fn,
                     Some(Duration::from_millis(10)),
                 )
@@ -95,42 +106,12 @@ impl AudioInputDevice {
             name,
             stream,
             sample_rate,
-            buffer: buffer_clone,
-            rx,
+            consumer,
         })
-    }
-
-    fn write_input_data(data: &[f32], tx: &Sender<Vec<f32>>) {
-        println!("{:?}", data);
-        if let Err(e) = tx.send(data.to_vec()) {
-            panic!("Failed To Send Data To Buffer: {}", e);
-        }
     }
 
     /// Starts the audio input stream.
     pub fn start(&self) -> Result<(), PlayStreamError> {
         self.stream.play()
-    }
-
-    /// Reads the buffered audio data.
-    pub fn read_buffer(&self) -> [f32; FFT_WINDOW] {
-        let buf = self.buffer.lock().unwrap().clone();
-        let x = buf.try_into().unwrap_or_else(|v: Vec<f32>| {
-            panic!(
-                "Expected a Audio Buffer of length {} but it was {}",
-                FFT_WINDOW,
-                v.len()
-            )
-        });
-        print!("{:?}", x); // TODO
-        x
-    }
-
-    /// Updates the internal buffer with data from the receiver.
-    pub fn update_buffer(&self) {
-        while let Ok(data) = self.rx.try_recv() {
-            let mut buffer = self.buffer.lock().unwrap();
-            buffer.extend(data);
-        }
     }
 }

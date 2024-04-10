@@ -1,3 +1,5 @@
+TODO: Update this whole thing
+
 [] = transmitter (transmitter -> receiver) packet
 () = receiver (receiver -> transmitter) packet
 
@@ -8,26 +10,6 @@ transmittingDevice echolot: Listening for Receiver's Handshake Initiation
 
 receivingDevice $ echolot receive # sends out initiation for handshake with transmitter
 receivingDevice echolot: Establishing Handshake..
-
-(
-Initiation - reserved freq
-)
-
-transmittingDevice echolot: Received Initiation!
-transmittingDevice echolot: Sending Response..
-
-[
-Response
-
-- reserved freq
-- size of Fileinfo
-  ]
-
-receivingDevice echolot: Handshake Established!
-
-(
-Agreement - reserved freq
-)
 
 transmittingDevice echolot: Handshake Established!
 transmittingDevice echolot: Transmitting Fileinfo

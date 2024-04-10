@@ -1,4 +1,5 @@
 mod audio_devices;
+mod processor;
 mod codec;
 mod fft;
 mod frequency;
@@ -7,7 +8,7 @@ mod packets;
 mod playback;
 
 use clap::{Parser, Subcommand};
-use fft::freq_fft;
+use fft::{freq_fft, FFT_WINDOW};
 use indicatif::ProgressBar;
 use packets::{ControlPacket, FileInfo, FileTransmission, Packet};
 use playback::playback;
@@ -56,6 +57,7 @@ fn main() {
 }
 
 fn transmit(path: &Path) {
+    // Readying Packets
     let packets_prep_spinner = ProgressBar::new_spinner();
     packets_prep_spinner.set_message(format!("Readying Packets for {}..", path.display()));
     packets_prep_spinner.enable_steady_tick(Duration::from_millis(60));
@@ -99,6 +101,8 @@ fn transmit(path: &Path) {
 
     packets_prep_spinner.finish_with_message("Packets are Ready");
 
+
+    // Setting up Audio Output
     let audio_output_setup_spinner = ProgressBar::new_spinner();
     audio_output_setup_spinner.set_message("Setting up Audio Output..");
     audio_output_setup_spinner.enable_steady_tick(Duration::from_millis(60));
@@ -115,11 +119,13 @@ fn transmit(path: &Path) {
         }
     };
 
+
+    // Setting up Audio Input
     let audio_input_setup_spinner = ProgressBar::new_spinner();
     audio_input_setup_spinner.set_message("Setting up Input Output..");
     audio_input_setup_spinner.enable_steady_tick(Duration::from_millis(60));
 
-    let audio_input = match audio_devices::AudioInputDevice::default() {
+    let mut audio_input = match audio_devices::AudioInputDevice::default() {
         Ok(audio_input) => {
             audio_input_setup_spinner
                 .finish_with_message(format!("Using Audio Input Device: {}", audio_input.name));
@@ -131,6 +137,8 @@ fn transmit(path: &Path) {
         }
     };
 
+
+    // Handshake: Initiation Part
     let handshake_spinner = ProgressBar::new_spinner();
     handshake_spinner.enable_steady_tick(Duration::from_millis(60));
 
@@ -140,18 +148,31 @@ fn transmit(path: &Path) {
     }
     thread::sleep(Duration::from_millis(50000)); // replace with agreement demodulation
 
+    processor::process_audio_samples(audio_input.consumer);
+
+    
+    
+    /*
+    loop {
+	println!("{:?}", audio_input.consumer.read_chunk(FFT_WINDOW).unwrap().as_slices());
+    }*/
+/*
     let calc_freq = || {
         vec![freq_fft(
-            audio_input.read_buffer(),
+            audio_input.consumer.buffer(),
             audio_input.sample_rate.0,
         )]
-    };
-
+};
+    */
+    /*
     audio_input.update_buffer();
     while demodulate(calc_freq(), Packet::Control(ControlPacket::Initiation)).is_none() {
         audio_input.update_buffer();
     }
+     */
 
+
+    // Handshake: Response Part
     handshake_spinner.set_message("Received Initiation. Transmitting Response");
 
     playback(
@@ -164,12 +185,18 @@ fn transmit(path: &Path) {
         &audio_output,
     );
     audio_output.sink.sleep_until_end();
+
+
+    // Handshake: Agreement Part
     handshake_spinner.set_message("Listening for Receiver's Handshake Agreement");
 
     thread::sleep(Duration::from_millis(500)); // replace with agreement demodulation
 
+    // Handshake Established
     handshake_spinner.finish_with_message("Established Handshake");
 
+
+    // Transmitting FileInfo
     playback(
         modulate(&file_info_packet_encoded)
             .into_iter()
@@ -208,6 +235,7 @@ fn transmit(path: &Path) {
 }
 
 fn receive() {
+    // Setting up Audio Output
     let audio_setup_spinner = ProgressBar::new_spinner();
     audio_setup_spinner.set_message("Setting up Audio Output..");
     audio_setup_spinner.enable_steady_tick(Duration::from_millis(60));
@@ -222,7 +250,26 @@ fn receive() {
             return;
         }
     };
+    
+    // Setting up Audio Input
+    let audio_input_setup_spinner = ProgressBar::new_spinner();
+    audio_input_setup_spinner.set_message("Setting up Input Output..");
+    audio_input_setup_spinner.enable_steady_tick(Duration::from_millis(60));
 
+    let audio_input = match audio_devices::AudioInputDevice::default() {
+        Ok(audio_input) => {
+            audio_input_setup_spinner
+                .finish_with_message(format!("Using Audio Input Device: {}", audio_input.name));
+            audio_input
+        }
+        Err(err) => {
+            audio_input_setup_spinner.abandon_with_message(err);
+            return;
+        }
+    };
+
+    
+    // Handshake: Initiation Part
     let handshake_spinner = ProgressBar::new_spinner();
     handshake_spinner.set_message("Establishing Handshake");
     handshake_spinner.enable_steady_tick(Duration::from_millis(60));
