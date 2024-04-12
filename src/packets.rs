@@ -1,30 +1,19 @@
 use serde::{Deserialize, Serialize};
 
-pub enum ControlPacket {
-    Initiation,
-    Agreement,
-}
+pub trait Packet {
+    fn encode(&self) -> Vec<u8> {
+	bincode::serialize(self).expect("Codec failed on Serialisation");
 
-pub enum Packet {
-    Control(ControlPacket),
-    Data(Vec<u8>),
-}
-
-pub fn get_binary_data(packet: &Packet) -> Option<&Vec<u8>> {
-    match packet {
-        Packet::Control(_) => None,
-        Packet::Data(data) => Some(data),
+	lzma::compress(self, 9).expect("Codec failed on Compression")
     }
+    
+    fn decode(encoded_packet: Vec<u8>) -> Self {
+	let decompressed = lzma::decompress(&mut encoded_packet).expect("Codec failed on Serialisation");
+	
+	bincode::deserialize(&decompressed).ok().expect("Codec failed on Serialisation")
+    }
+    
 }
-
-pub struct Initiation;
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct Response {
-    pub file_info_size: usize,
-}
-
-pub struct Agreement;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct FileInfo {
@@ -33,12 +22,19 @@ pub struct FileInfo {
     pub checksum: u32,
 }
 
+impl Packet for FileInfo {}
+
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct Confirmation {
     pub state: bool,
 }
 
+impl Packet for Confirmation {}
+
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct FileTransmission {
     pub file: Vec<u8>,
+    pub checksum: u32,
 }
+
+impl Packet for FileTransmission {}

@@ -413,6 +413,7 @@ dependencies = [
  "num-complex",
  "rodio",
  "rtrb",
+ "rust-lzma",
  "rustfft",
  "serde",
 ]
@@ -973,6 +974,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rust-lzma"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d62915608f6cee1d7f2fc00f28b4f058ff79d6e4ec3c2fe0006b09b52437c84"
+dependencies = [
+ "pkg-config",
+ "vcpkg",
+]
+
+[[package]]
 name = "rustc-hash"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1237,6 +1248,12 @@ name = "utf8parse"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "711b9620af191e0cdc7468a8d14e709c3dcdb115b36f838e601583af800a370a"
+
+[[package]]
+name = "vcpkg"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "version_check"

@@ -8,11 +8,42 @@ use cpal::{
     StreamConfig,
 };
 use cpal::{PlayStreamError, SampleRate, Stream};
+use rodio::source::SineWave;
 use rodio::{OutputStream, OutputStreamHandle, Sink};
 use rtrb::{Consumer, PopError, Producer, PushError, RingBuffer};
 use std::sync::mpsc::{self, Receiver, Sender};
 
-use crate::fft::{freq_fft, freq_fft_legacy, FFT_WINDOW};
+use crate::modulation::FFT_WINDOW;
+
+/// Wrapper around Rodio's SineWave
+/// because it doesnt expose frequency field
+/// this is a memory overhead that could be improved
+#[derive(Debug)]
+pub struct Frequency {
+    pub freq: f32,
+    pub sine_wave: SineWave,
+}
+
+impl Frequency {
+    pub fn new(freq: f32) -> Self {
+        Self {
+            freq,
+            sine_wave: SineWave::new(freq),
+        }
+    }
+}
+
+impl From<Frequency> for f32 {
+    fn from(item: Frequency) -> Self {
+        item.freq
+    }
+}
+
+impl PartialEq for Frequency {
+    fn eq(&self, other: &Self) -> bool {
+        self.freq == other.freq
+    }
+}
 
 pub struct AudioOutputDevice {
     pub name: String,

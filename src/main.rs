@@ -1,26 +1,12 @@
-mod audio_devices;
-mod processor;
-mod codec;
-mod fft;
-mod frequency;
+mod audio;
 mod modulation;
 mod packets;
-mod playback;
 
 use clap::{Parser, Subcommand};
-use fft::{freq_fft, FFT_WINDOW};
 use indicatif::ProgressBar;
-use packets::{ControlPacket, FileInfo, FileTransmission, Packet};
-use playback::playback;
 use std::path::Path;
 use std::{fs, thread, time::Duration};
-
-use crate::{
-    codec::Codec,
-    modulation::demodulate,
-    modulation::modulate,
-    packets::{get_binary_data, Response},
-};
+use crate::packets::{FileInfo, Confirmation, FileTransmission};
 
 const BYTE_DURATION_MS: u64 = 100;
 
@@ -57,6 +43,9 @@ fn main() {
 }
 
 fn transmit(path: &Path) {
+    todo!();
+    /*
+    
     // Readying Packets
     let packets_prep_spinner = ProgressBar::new_spinner();
     packets_prep_spinner.set_message(format!("Readying Packets for {}..", path.display()));
@@ -232,9 +221,12 @@ fn transmit(path: &Path) {
     audio_output.sink.sleep_until_end();
 
     transmission_progress.finish_with_message(format!("{} has been transmitted", &filename));
+    */
 }
 
 fn receive() {
+    todo!();
+    /*
     // Setting up Audio Output
     let audio_setup_spinner = ProgressBar::new_spinner();
     audio_setup_spinner.set_message("Setting up Audio Output..");
@@ -287,4 +279,5 @@ fn receive() {
     );
 
     handshake_spinner.finish_with_message("Established Handshake");
+    */
 }

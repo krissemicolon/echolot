@@ -1,33 +1,33 @@
-TODO: Update this whole thing
-
 [] = transmitter (transmitter -> receiver) packet
 () = receiver (receiver -> transmitter) packet
 
-transmittingDevice $ echolot transmit paper.pdf # readies packets and listens for initiation
+transmittingDevice $ echolot transmit paper.pdf
+transmittingDevice echolot: Audio Input Device: MacBook Microphone
+transmittingDevice echolot: Audio Output Device: MacBook Speakers
 transmittingDevice echolot: Readying Packets..
 transmittingDevice echolot: Packets are Ready
-transmittingDevice echolot: Listening for Receiver's Handshake Initiation
 
 receivingDevice $ echolot receive # sends out initiation for handshake with transmitter
 receivingDevice echolot: Establishing Handshake..
 
-transmittingDevice echolot: Handshake Established!
-transmittingDevice echolot: Transmitting Fileinfo
-
 [
 Fileinfo
+- Preamble
 
 - filename
 - filesize
 - checksum
   ]
 
-receivingDevice echolot: [========>----] Receiving Fileinfo
+receivingDevice echolot: [Spinner] Receiving Fileinfo
 receivingDevice echolot: Pretty Print file info here + where file gets saved
 receivingDevice echolot: Do you want to receive paper.pdf (y/n):
 
 (
-Confirmation - true/false
+Confirmation
+- Preamble
+
+- true/false
 )
 
 -> in case of false confirmation {
@@ -39,8 +39,9 @@ transmittingDevice echolot: [=>--------] Transmitting paper.pdf..
 
 [
 Filetransmission
+- Preamble
 
-- file as base64 string
+- file encoded in Codec
 - checksum
   ]
 
