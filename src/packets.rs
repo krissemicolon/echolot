@@ -1,18 +1,26 @@
 use serde::{Deserialize, Serialize};
 
 pub trait Packet {
-    fn encode(&self) -> Vec<u8> {
-	bincode::serialize(self).expect("Codec failed on Serialisation");
+    fn encode(&self) -> Vec<u8>
+    where
+        Self: Serialize,
+    {
+        let bin = bincode::serialize(self).expect("Codec failed on Serialisation");
 
-	lzma::compress(self, 9).expect("Codec failed on Compression")
+        lzma::compress(&bin, 9).expect("Codec failed on Compression")
     }
-    
-    fn decode(encoded_packet: Vec<u8>) -> Self {
-	let decompressed = lzma::decompress(&mut encoded_packet).expect("Codec failed on Serialisation");
-	
-	bincode::deserialize(&decompressed).ok().expect("Codec failed on Serialisation")
+
+    fn decode(encoded_packet: Vec<u8>) -> Self
+    where
+        Self: Sized + Serialize + for<'a> Deserialize<'a>,
+    {
+        let decompressed =
+            lzma::decompress(&encoded_packet).expect("Codec failed on Decompression");
+
+        bincode::deserialize(&decompressed)
+            .ok()
+            .expect("Codec failed on Deserialisation")
     }
-    
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]

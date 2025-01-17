@@ -1,6 +1,6 @@
 # [echolot](https://crates.io/crates/echolot)
 
-> a cli tool for exchanging files over sound waves
+> a cli tool for exchanging files over speakers and microphones
 
 ## Installation
 
@@ -30,4 +30,3 @@ This will send the initiation to the transmitting party and start the whole tran
 
 Modulation is done with a simple 256-MFSK.
 Each Frequency therefore represents one byte.
-

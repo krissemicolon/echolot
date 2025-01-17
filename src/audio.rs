@@ -3,17 +3,19 @@ use std::thread;
 use std::time::Duration;
 
 use cpal::traits::HostTrait;
+use cpal::PlayStreamError;
 use cpal::{
     traits::{DeviceTrait, StreamTrait},
     StreamConfig,
 };
-use cpal::{PlayStreamError, SampleRate, Stream};
+use cpal::{SampleRate, Stream};
 use rodio::source::SineWave;
 use rodio::{OutputStream, OutputStreamHandle, Sink};
 use rtrb::{Consumer, PopError, Producer, PushError, RingBuffer};
+use rustfft::FftPlanner;
 use std::sync::mpsc::{self, Receiver, Sender};
 
-use crate::modulation::FFT_WINDOW;
+use crate::modulation::{self, FFT_WINDOW};
 
 /// Wrapper around Rodio's SineWave
 /// because it doesnt expose frequency field
@@ -80,6 +82,15 @@ impl AudioOutputDevice {
             _stream: (_stream, stream_handle),
         })
     }
+
+    pub fn playback(&mut self, freqs: Vec<Frequency>) {
+        self.sink.append(freqs[0].sine_wave.clone());
+    }
+}
+
+fn find_sync(data: &[u8], pattern: &[u8]) -> Option<usize> {
+    data.windows(pattern.len())
+        .position(|window| window == pattern)
 }
 
 pub struct AudioInputDevice {
@@ -101,9 +112,9 @@ impl AudioInputDevice {
         let name = device
             .name()
             .map_err(|e| format!("Unable to Retrieve Audio Input Device Name: {}", e))?;
-        let (mut producer, mut consumer) = RingBuffer::<f32>::new(2 * FFT_WINDOW);
+        let (producer, consumer) = RingBuffer::<f32>::new(2 * 1024); // Example buffer size
 
-        let err_fn = move |err| eprintln!("An Error Occurred On Audio Input: {}", err);
+        let err_fn = |err| eprintln!("An Error Occurred On Audio Input: {}", err);
 
         let sample_format = config.sample_format();
         let stream_config: StreamConfig = config.into();
@@ -114,24 +125,24 @@ impl AudioInputDevice {
                 .build_input_stream(
                     &stream_config,
                     move |data: &[f32], _: &_| {
-			/*
-                        data.into_iter().for_each(|x| {
-                            //producer.push(x.to_owned()).expect("Internal Audio Error!")
-			    print!("{}", x);
-                    })
-			 */
-			print!("{:?}\n\n", data) ;
-			println!("{}", freq_fft_legacy(&data, 48000));
-			
-			thread::sleep(Duration::from_secs(1));
-			panic!();
+                        let binary_data = modulation::demodulate(
+                            data.into_iter()
+                                .map(|f| Frequency::new(f.clone()))
+                                .collect(),
+                        );
+                        let sync_pattern = vec![1, 0, 1, 0, 1, 0];
+
+                        if let Some(index) = find_sync(&binary_data.unwrap(), &sync_pattern) {
+                            // Synchronization found, process data starting from `index`
+                            println!("Synchronized at index: {}", index);
+                        }
                     },
                     err_fn,
-                    Some(Duration::from_millis(10)),
+                    Some(Duration::from_millis(5)),
                 )
-                .map_err(|e| e.to_string())?,
-            _ => return Err("Unsupported sample format".to_string()),
-        };
+                .map_err(|e| e.to_string()),
+            _ => Err("Unsupported sample format".to_string()),
+        }?;
 
         Ok(Self {
             name,
@@ -142,7 +153,7 @@ impl AudioInputDevice {
     }
 
     /// Starts the audio input stream.
-    pub fn start(&self) -> Result<(), PlayStreamError> {
+    pub fn start(&self) -> Result<(), cpal::PlayStreamError> {
         self.stream.play()
     }
 }
