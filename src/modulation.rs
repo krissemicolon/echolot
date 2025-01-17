@@ -1,5 +1,5 @@
 use crate::audio::Frequency;
-use crate::packets::{Confirmation, FileInfo, FileTransmission, Packet};
+use crate::packets::Packet;
 
 /// samples / 2 > max_freq = 8192 / 2 > 2860
 pub const FFT_WINDOW: usize = 8192;

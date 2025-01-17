@@ -1,9 +1,6 @@
-use std::sync::{Arc, Mutex};
-use std::thread;
 use std::time::Duration;
 
 use cpal::traits::HostTrait;
-use cpal::PlayStreamError;
 use cpal::{
     traits::{DeviceTrait, StreamTrait},
     StreamConfig,
@@ -11,11 +8,9 @@ use cpal::{
 use cpal::{SampleRate, Stream};
 use rodio::source::SineWave;
 use rodio::{OutputStream, OutputStreamHandle, Sink};
-use rtrb::{Consumer, PopError, Producer, PushError, RingBuffer};
-use rustfft::FftPlanner;
-use std::sync::mpsc::{self, Receiver, Sender};
+use rtrb::{Consumer, RingBuffer};
 
-use crate::modulation::{self, FFT_WINDOW};
+use crate::modulation;
 
 /// Wrapper around Rodio's SineWave
 /// because it doesnt expose frequency field
