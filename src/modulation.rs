@@ -1,5 +1,4 @@
 use crate::audio::Frequency;
-use crate::packets::Packet;
 
 /// samples / 2 > max_freq = 8192 / 2 > 2860
 pub const FFT_WINDOW: usize = 8192;
@@ -27,7 +26,7 @@ pub fn demodulate(freqs: Vec<Frequency>) -> Option<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::packets::FileInfo;
+    use crate::packets::{FileInfo, Packet};
 
     use super::*;
 
