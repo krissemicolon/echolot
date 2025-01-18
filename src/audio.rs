@@ -6,41 +6,10 @@ use cpal::{
     StreamConfig,
 };
 use cpal::{SampleRate, Stream};
-use rodio::source::SineWave;
 use rodio::{OutputStream, OutputStreamHandle, Sink};
 use rtrb::{Consumer, RingBuffer};
 
-use crate::modulation;
-
-/// Wrapper around Rodio's SineWave
-/// because it doesnt expose frequency field
-/// this is a memory overhead that could be improved
-#[derive(Debug)]
-pub struct Frequency {
-    pub freq: f32,
-    pub sine_wave: SineWave,
-}
-
-impl Frequency {
-    pub fn new(freq: f32) -> Self {
-        Self {
-            freq,
-            sine_wave: SineWave::new(freq),
-        }
-    }
-}
-
-impl From<Frequency> for f32 {
-    fn from(item: Frequency) -> Self {
-        item.freq
-    }
-}
-
-impl PartialEq for Frequency {
-    fn eq(&self, other: &Self) -> bool {
-        self.freq == other.freq
-    }
-}
+use crate::frequency::Frequency;
 
 pub struct AudioOutputDevice {
     pub name: String,
@@ -107,7 +76,7 @@ impl AudioInputDevice {
         let name = device
             .name()
             .map_err(|e| format!("Unable to Retrieve Audio Input Device Name: {}", e))?;
-        let (producer, consumer) = RingBuffer::<f32>::new(2 * 1024); // Example buffer size
+        let (mut producer, mut consumer) = RingBuffer::<f32>::new(2 * 1024);
 
         let err_fn = |err| eprintln!("An Error Occurred On Audio Input: {}", err);
 
@@ -120,17 +89,20 @@ impl AudioInputDevice {
                 .build_input_stream(
                     &stream_config,
                     move |data: &[f32], _: &_| {
-                        let binary_data = modulation::demodulate(
-                            data.into_iter()
-                                .map(|f| Frequency::new(f.clone()))
-                                .collect(),
-                        );
-                        let sync_pattern = vec![1, 0, 1, 0, 1, 0];
+                        // let binary_data = modulation::demodulate(
+                        //     data.into_iter()
+                        //         .map(|f| Frequency::new(f.clone()))
+                        //         .collect(),
+                        // );
+                        // let sync_pattern = vec![1, 0, 1, 0, 1, 0];
 
-                        if let Some(index) = find_sync(&binary_data.unwrap(), &sync_pattern) {
-                            // Synchronization found, process data starting from `index`
-                            println!("Synchronized at index: {}", index);
-                        }
+                        // if let Some(index) = find_sync(&binary_data.unwrap(), &sync_pattern) {
+                        //     // Synchronization found, process data starting from `index`
+                        //     println!("Synchronized at index: {}", index);
+                        // }
+                        data.into_iter().for_each(|x| {
+                            producer.push(x.to_owned()).expect("Internal Audio Error!")
+                        })
                     },
                     err_fn,
                     Some(Duration::from_millis(5)),

@@ -90,9 +90,8 @@ pub fn transmit(path: &Path) {
         Err(e) => panic!("Could Not Start Listening To Microphone: {}", e),
     }
 
-    // thread::sleep(Duration::from_millis(50000)); // replace with initiation demodulation
-
     loop {
+        thread::sleep(Duration::from_millis(1000));
         println!(
             "{:?}",
             audio_input

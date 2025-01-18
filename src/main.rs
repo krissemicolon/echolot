@@ -1,4 +1,5 @@
 mod audio;
+mod frequency;
 mod modulation;
 mod packets;
 mod receive;

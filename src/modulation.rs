@@ -1,4 +1,4 @@
-use crate::audio::Frequency;
+use crate::frequency::Frequency;
 
 /// samples / 2 > max_freq = 8192 / 2 > 2860
 pub const FFT_WINDOW: usize = 8192;
@@ -53,7 +53,6 @@ mod tests {
         .map(Frequency::new)
         .collect();
 
-        //        assert_eq!(true, true);
         assert_eq!(expected_freqs, freqs);
     }
 
@@ -81,6 +80,7 @@ mod tests {
             file_size: 1711,
             checksum: 0, // TODO
         };
+
         assert_eq!(expected_packet, packet);
     }
 }
