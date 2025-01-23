@@ -29,4 +29,4 @@ This will send the initiation to the transmitting party and start the whole tran
 ## Technicals
 
 Modulation is done with a simple 256-MFSK.
-Each Frequency therefore represents one byte.
+Each frequency therefore represents one byte.
