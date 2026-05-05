@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use circular_buffer::CircularBuffer;
 use cpal::traits::HostTrait;
 use cpal::{
     traits::{DeviceTrait, StreamTrait},
@@ -76,9 +77,10 @@ impl AudioInputDevice {
         let name = device
             .name()
             .map_err(|e| format!("Unable to Retrieve Audio Input Device Name: {}", e))?;
-        let (mut producer, mut consumer) = RingBuffer::<f32>::new(2 * 1024);
 
         let err_fn = |err| eprintln!("An Error Occurred On Audio Input: {}", err);
+
+        let (mut producer, mut consumer) = RingBuffer::<f32>::new(16384);
 
         let sample_format = config.sample_format();
         let stream_config: StreamConfig = config.into();
@@ -89,20 +91,7 @@ impl AudioInputDevice {
                 .build_input_stream(
                     &stream_config,
                     move |data: &[f32], _: &_| {
-                        // let binary_data = modulation::demodulate(
-                        //     data.into_iter()
-                        //         .map(|f| Frequency::new(f.clone()))
-                        //         .collect(),
-                        // );
-                        // let sync_pattern = vec![1, 0, 1, 0, 1, 0];
-
-                        // if let Some(index) = find_sync(&binary_data.unwrap(), &sync_pattern) {
-                        //     // Synchronization found, process data starting from `index`
-                        //     println!("Synchronized at index: {}", index);
-                        // }
-                        data.into_iter().for_each(|x| {
-                            producer.push(x.to_owned()).expect("Internal Audio Error!")
-                        })
+                        let _ = producer.push_entire_slice(data);
                     },
                     err_fn,
                     Some(Duration::from_millis(5)),

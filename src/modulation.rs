@@ -1,8 +1,5 @@
 use crate::frequency::Frequency;
 
-/// samples / 2 > max_freq = 8192 / 2 > 2860
-pub const FFT_WINDOW: usize = 8192;
-
 /// 256-MFSK Modulation for packets
 /// with reserved frequencies for control packets
 pub fn modulate(data: Vec<u8>) -> Vec<Frequency> {
@@ -35,7 +32,7 @@ mod tests {
         let fileinfo_packet = FileInfo {
             file_name: "foo.txt".to_string(),
             file_size: 1711,
-            checksum: 0, // TODO
+            checksum: 0,
         };
         let freqs: Vec<Frequency> = modulate(fileinfo_packet.encode());
 
@@ -78,7 +75,7 @@ mod tests {
         let expected_packet = FileInfo {
             file_name: "foo.txt".to_string(),
             file_size: 1711,
-            checksum: 0, // TODO
+            checksum: 0,
         };
 
         assert_eq!(expected_packet, packet);

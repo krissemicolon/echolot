@@ -1,10 +1,36 @@
 use crate::audio;
 use crate::modulation;
 use crate::packets::{FileInfo, FileTransmission, Packet};
+use circular_buffer::CircularBuffer;
 use indicatif::ProgressBar;
-use modulation::FFT_WINDOW;
+use rtrb::{Consumer, RingBuffer};
+use rustfft::{num_complex::Complex, FftPlanner};
 use std::path::Path;
+use std::slice;
 use std::{fs, thread, time::Duration};
+
+fn dominant_frequency(samples: &[f32], sample_rate: f32) -> f32 {
+    let mut planner = FftPlanner::new();
+    let fft = planner.plan_fft_forward(samples.len());
+
+    let mut buffer: Vec<Complex<f32>> = samples.iter().map(|&v| Complex::new(v, 0.0)).collect();
+
+    fft.process(&mut buffer);
+
+    let mut max_mag = 0.0;
+    let mut max_index = 0;
+
+    for (i, c) in buffer.iter().enumerate().take(samples.len() / 2) {
+        let mag = c.re * c.re + c.im * c.im;
+
+        if mag > max_mag {
+            max_mag = mag;
+            max_index = i;
+        }
+    }
+
+    max_index as f32 * sample_rate / samples.len() as f32
+}
 
 pub fn transmit(path: &Path) {
     // Readying Packets
@@ -90,49 +116,34 @@ pub fn transmit(path: &Path) {
         Err(e) => panic!("Could Not Start Listening To Microphone: {}", e),
     }
 
-    loop {
-        thread::sleep(Duration::from_millis(1000));
-        println!(
-            "{:?}",
-            audio_input
-                .consumer
-                .read_chunk(FFT_WINDOW)
-                .unwrap()
-                .as_slices()
-        );
-    }
-
-    /*
-    processor::process_audio_samples(audio_input.consumer);
-
-    loop {
-        println!(
-            "{:?}",
-            audio_input
-                .consumer
-                .read_chunk(FFT_WINDOW)
-                .unwrap()
-                .as_slices()
-        );
-    }
-    let calc_freq = || {
-        vec![freq_fft(
-            audio_input.consumer.buffer(),
-            audio_input.sample_rate.0,
-        )]
-    };
-    audio_input.update_buffer();
-    while demodulate(calc_freq(), Packet::Control(ControlPacket::Initiation)).is_none() {
-        audio_input.update_buffer();
-    }*/
-
     // Handshake: Agreement Part
     handshake_spinner.set_message("Listening for Receiver's Handshake Agreement");
+    handshake_spinner.finish_with_message("LOGGING Handshake");
 
-    thread::sleep(Duration::from_millis(500)); // replace with agreement demodulation
+    // gives ringbuffer time to populate with audio samples
+    // takes approx 371.51ms with 44.1kHz
+    thread::sleep(Duration::from_millis(500));
+
+    let mut agreement_detected = false;
+
+    let mut sliding_window = CircularBuffer::<16384, f32>::new();
+
+    while !agreement_detected {
+        if let Ok(chunk) = audio_input.consumer.read_chunk(512) {
+            for sample in chunk {
+                sliding_window.push_back(sample);
+            }
+
+            if sliding_window.is_full() {
+                let freq = dominant_frequency(sliding_window.as_slices().0, 44100.0);
+            }
+        } else {
+            std::thread::yield_now();
+        }
+    }
 
     // Handshake Established
-    handshake_spinner.finish_with_message("Established Handshake");
+    // handshake_spinner.finish_with_message("Established Handshake");
 
     // Transmitting FileInfo
     audio_output.playback(modulation::modulate(file_info_packet_encoded));
