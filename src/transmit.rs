@@ -156,8 +156,10 @@ pub fn transmit(path: &Path) {
     audio_output.playback(modulation::modulate(file_info_packet_encoded));
     audio_output.sink.sleep_until_end();
 
-    fileinfo_spinner.set_message("Listening for confirmation");
+    fileinfo_spinner.set_message("Listening for Confirmation");
     thread::sleep(Duration::from_millis(500)); // replace with confirmation demodulation
+
+    fileinfo_spinner.finish_with_message("Received Confirmation");
 
     let transmission_size = &file_transmission_packet_encoded.len();
     let transmission_progress = ProgressBar::new(filesize);

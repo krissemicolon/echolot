@@ -6,7 +6,7 @@ use cpal::{
     StreamConfig,
 };
 use cpal::{SampleRate, Stream};
-use rodio::{OutputStream, OutputStreamHandle, Sink};
+use rodio::{OutputStream, OutputStreamHandle, Sink, Source};
 use rtrb::{Consumer, RingBuffer};
 
 use crate::frequency::Frequency;
@@ -48,9 +48,13 @@ impl AudioOutputDevice {
     }
 
     pub fn playback(&mut self, freqs: Vec<Frequency>) {
-        for freq in freqs {
-            self.sink.append(freq.sine_wave.clone());
-        }
+        freqs.into_iter().for_each(|freq| {
+            self.sink.append(
+                freq.sine_wave
+                    .take_duration(Duration::from_millis(100))
+                    .amplify(1.0),
+            );
+        });
     }
 }
 
