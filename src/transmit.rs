@@ -1,5 +1,6 @@
 use crate::audio;
 use crate::modulation;
+use crate::modulation::quantise;
 use crate::packets::{FileInfo, FileTransmission, Packet};
 use circular_buffer::CircularBuffer;
 use indicatif::ProgressBar;
@@ -118,7 +119,6 @@ pub fn transmit(path: &Path) {
 
     // Handshake: Agreement Part
     handshake_spinner.set_message("Listening for Receiver's Handshake Agreement");
-    handshake_spinner.finish_with_message("LOGGING Handshake");
 
     // gives ringbuffer time to populate with audio samples
     // takes approx 371.51ms with 44.1kHz
@@ -136,6 +136,9 @@ pub fn transmit(path: &Path) {
 
             if sliding_window.is_full() {
                 let freq = dominant_frequency(sliding_window.as_slices().0, 44100.0);
+                if (freq - 3000.0).abs() <= 10.0 {
+                    agreement_detected = true;
+                }
             }
         } else {
             std::thread::yield_now();
@@ -143,12 +146,17 @@ pub fn transmit(path: &Path) {
     }
 
     // Handshake Established
-    // handshake_spinner.finish_with_message("Established Handshake");
+    handshake_spinner.finish_with_message("Established Handshake");
+
+    // File Info
+    let fileinfo_spinner = ProgressBar::new_spinner();
+    fileinfo_spinner.set_message("Transmitting FileInfo");
 
     // Transmitting FileInfo
     audio_output.playback(modulation::modulate(file_info_packet_encoded));
     audio_output.sink.sleep_until_end();
 
+    fileinfo_spinner.set_message("Listening for confirmation");
     thread::sleep(Duration::from_millis(500)); // replace with confirmation demodulation
 
     let transmission_size = &file_transmission_packet_encoded.len();

@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use circular_buffer::CircularBuffer;
 use cpal::traits::HostTrait;
 use cpal::{
     traits::{DeviceTrait, StreamTrait},
@@ -49,7 +48,9 @@ impl AudioOutputDevice {
     }
 
     pub fn playback(&mut self, freqs: Vec<Frequency>) {
-        self.sink.append(freqs[0].sine_wave.clone());
+        for freq in freqs {
+            self.sink.append(freq.sine_wave.clone());
+        }
     }
 }
 

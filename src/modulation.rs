@@ -1,5 +1,9 @@
 use crate::frequency::Frequency;
 
+pub fn quantise(freq: f32) -> f32 {
+    ((freq - 300.0) / 10.0).round().clamp(0.0, 255.0) * 10.0 + 300.0
+}
+
 /// 256-MFSK Modulation for packets
 /// with reserved frequencies for control packets
 pub fn modulate(data: Vec<u8>) -> Vec<Frequency> {
@@ -8,13 +12,10 @@ pub fn modulate(data: Vec<u8>) -> Vec<Frequency> {
         .collect()
 }
 
-/// 266-MFSK Demodulation for data packets
+/// 256-MFSK Demodulation for data packets
 /// with reserved frequencies for control packets
-pub fn demodulate(freqs: Vec<Frequency>) -> Option<Vec<u8>> {
-    if freqs.is_empty() {
-        return None;
-    }
-    let data: Vec<u8> = freqs
+pub fn demodulate(freq: Vec<Frequency>) -> Option<Vec<u8>> {
+    let data: Vec<u8> = freq
         .into_iter()
         .map(|f| ((f.freq - 300.0) / 10.0) as u8)
         .collect();
