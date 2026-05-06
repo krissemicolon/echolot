@@ -4,7 +4,7 @@ use crate::{
     modulation::demodulate,
     packets::{FileInfo, Packet},
     pitch_detection,
-    quantise::{is_within_tolerance_to, quantise_to_codec},
+    quantise::{self, is_within_tolerance_to, quantise_to_codec},
     BYTE_DURATION_MS, EOT_FREQ, HANDSHAKE_RECEIVER_FREQ, HANDSHAKE_TRANSMITTER_FREQ,
     PREAMBLE_FIRST_FREQ, PREAMBLE_SECOND_FREQ, PREAMBLE_THIRD_FREQ, STD_TOLERANCE,
 };
@@ -12,6 +12,7 @@ use circular_buffer::CircularBuffer;
 use indicatif::ProgressBar;
 use std::{
     process::exit,
+    thread::sleep,
     time::{Duration, Instant},
 };
 
@@ -69,8 +70,10 @@ pub fn receive() {
             }
 
             if sliding_window.is_full() {
-                let freq =
-                    pitch_detection::dominant_frequency(sliding_window.as_slices().0, 44100.0);
+                let freq = pitch_detection::dominant_frequency(
+                    sliding_window.as_slices().0,
+                    audio_input.sample_rate,
+                );
                 if is_within_tolerance_to(freq, HANDSHAKE_TRANSMITTER_FREQ, STD_TOLERANCE) {
                     handshake_detected = true;
                 }
@@ -87,6 +90,7 @@ pub fn receive() {
     handshake_spinner.finish_with_message("Established Handshake");
 
     let mut sliding_window = CircularBuffer::<16384, f32>::new();
+    let mut freq_bucket = CircularBuffer::<20, f32>::new();
 
     let mut fileinfo_freqs: Vec<Frequency> = vec![];
     let mut preamble_first = false;
@@ -103,61 +107,70 @@ pub fn receive() {
             for sample in chunk {
                 sliding_window.push_back(sample);
             }
+            if !sliding_window.is_full() {
+                std::thread::yield_now();
+                continue;
+            }
 
-            if sliding_window.is_full() {
-                let raw_freq =
-                    pitch_detection::dominant_frequency(sliding_window.as_slices().0, 44100.0);
-                let quantised_freq = Frequency::new(quantise_to_codec(raw_freq));
-                // println!("{raw_freq}\t\t{:?}", quantised_freq);
+            let raw_freq = pitch_detection::dominant_frequency(
+                sliding_window.as_slices().0,
+                audio_input.sample_rate,
+            );
 
-                if preamble_detected {
-                    // EOT
-                    if is_within_tolerance_to(raw_freq, EOT_FREQ, STD_TOLERANCE) {
-                        eot_detected = true;
-                        break;
+            freq_bucket.push_back(raw_freq);
+
+            // println!("{raw_freq}\t\t{:?}", freq_bucket);
+
+            if preamble_detected {
+                // EOT
+                if is_within_tolerance_to(raw_freq, EOT_FREQ, STD_TOLERANCE) {
+                    eot_detected = true;
+                    break;
+                }
+
+                if let Some(interval) = interval_time {
+                    if Instant::now() >= timer + interval {
+                        let average_freq =
+                            freq_bucket.iter().sum::<f32>() / freq_bucket.len() as f32;
+                        let interval_freq = Frequency::new(quantise_to_codec(average_freq));
+                        println!("ADDED FREQ {:?}", &interval_freq);
+                        fileinfo_freqs.push(interval_freq);
+                        timer = Instant::now();
                     }
+                }
+            } else {
+                if !preamble_first
+                    && is_within_tolerance_to(raw_freq, PREAMBLE_FIRST_FREQ, STD_TOLERANCE)
+                {
+                    preamble_first = true;
+                    first_time = Some(Instant::now());
+                }
+                if !preamble_second
+                    && is_within_tolerance_to(raw_freq, PREAMBLE_SECOND_FREQ, STD_TOLERANCE)
+                {
+                    preamble_second = true;
+                    second_time = Some(Instant::now());
+                }
+
+                if preamble_first && preamble_second && !preamble_detected {
+                    interval_time = Some(
+                        second_time.expect("Time Calculation Error")
+                            - first_time.expect("Time Calculation Error"),
+                    );
 
                     if let Some(interval) = interval_time {
-                        if Instant::now() >= timer + interval {
-                            println!("ADDED FREQ {:?}", &quantised_freq);
-                            fileinfo_freqs.push(quantised_freq);
+                        if Instant::now()
+                            >= second_time.expect("Time Calculation Error")
+                                + interval
+                                + (interval / 2)
+                        {
+                            assert!(is_within_tolerance_to(
+                                raw_freq,
+                                PREAMBLE_THIRD_FREQ,
+                                STD_TOLERANCE
+                            ));
+                            preamble_detected = true;
                             timer = Instant::now();
-                        }
-                    }
-                } else {
-                    if !preamble_first
-                        && is_within_tolerance_to(raw_freq, PREAMBLE_FIRST_FREQ, STD_TOLERANCE)
-                    {
-                        preamble_first = true;
-                        first_time = Some(Instant::now());
-                    }
-                    if !preamble_second
-                        && is_within_tolerance_to(raw_freq, PREAMBLE_SECOND_FREQ, STD_TOLERANCE)
-                    {
-                        preamble_second = true;
-                        second_time = Some(Instant::now());
-                    }
-
-                    if preamble_first && preamble_second && !preamble_detected {
-                        interval_time = Some(
-                            second_time.expect("Time Calculation Error")
-                                - first_time.expect("Time Calculation Error"),
-                        );
-
-                        if let Some(interval) = interval_time {
-                            if Instant::now()
-                                >= second_time.expect("Time Calculation Error")
-                                    + interval
-                                    + (interval / 2)
-                            {
-                                assert!(is_within_tolerance_to(
-                                    raw_freq,
-                                    PREAMBLE_THIRD_FREQ,
-                                    STD_TOLERANCE
-                                ));
-                                preamble_detected = true;
-                                timer = Instant::now();
-                            }
                         }
                     }
                 }

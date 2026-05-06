@@ -1,6 +1,7 @@
+use cpal::SampleRate;
 use rustfft::{num_complex::Complex, FftPlanner};
 
-pub fn dominant_frequency(samples: &[f32], sample_rate: f32) -> f32 {
+pub fn dominant_frequency(samples: &[f32], sample_rate: SampleRate) -> f32 {
     let mut planner = FftPlanner::new();
     let fft = planner.plan_fft_forward(samples.len());
 
@@ -20,5 +21,5 @@ pub fn dominant_frequency(samples: &[f32], sample_rate: f32) -> f32 {
         }
     }
 
-    max_index as f32 * sample_rate / samples.len() as f32
+    max_index as f32 * sample_rate.0 as f32 / samples.len() as f32
 }

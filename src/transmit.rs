@@ -109,8 +109,10 @@ pub fn transmit(path: &Path) {
             }
 
             if sliding_window.is_full() {
-                let freq =
-                    pitch_detection::dominant_frequency(sliding_window.as_slices().0, 44100.0);
+                let freq = pitch_detection::dominant_frequency(
+                    sliding_window.as_slices().0,
+                    audio_input.sample_rate,
+                );
                 if is_within_tolerance_to(freq, HANDSHAKE_RECEIVER_FREQ, STD_TOLERANCE) {
                     agreement_detected = true;
                 }
@@ -158,8 +160,10 @@ pub fn transmit(path: &Path) {
             }
 
             if sliding_window.is_full() {
-                let freq =
-                    pitch_detection::dominant_frequency(sliding_window.as_slices().0, 44100.0);
+                let freq = pitch_detection::dominant_frequency(
+                    sliding_window.as_slices().0,
+                    audio_input.sample_rate,
+                );
                 if is_within_tolerance_to(freq, CONFIRMATION_FREQ, STD_TOLERANCE) {
                     confirmation_detected = true;
                 }
