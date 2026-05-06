@@ -6,6 +6,7 @@ use rodio::source::SineWave;
 #[derive(Debug)]
 pub struct Frequency {
     pub freq: f32,
+    pub len: u64,
     pub sine_wave: SineWave,
 }
 
@@ -13,6 +14,14 @@ impl Frequency {
     pub fn new(freq: f32) -> Self {
         Self {
             freq,
+            len: 100,
+            sine_wave: SineWave::new(freq),
+        }
+    }
+    pub fn new_with_len(freq: f32, len: u64) -> Self {
+        Self {
+            freq,
+            len,
             sine_wave: SineWave::new(freq),
         }
     }

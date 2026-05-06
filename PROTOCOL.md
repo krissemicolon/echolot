@@ -30,7 +30,7 @@ Confirmation
 - true/false
 )
 
--> in case of false confirmation {
+-> in case of denial confirmation {
 transmittingDevice echolot: Receiver does not want to receive paper.pdf!
 transmittingDevice echolot: Listening for Receiver's Handshake Initiation
 }

@@ -1,37 +1,12 @@
 use crate::audio;
+use crate::frequency::Frequency;
 use crate::modulation;
-use crate::modulation::quantise;
 use crate::packets::{FileInfo, FileTransmission, Packet};
+use crate::pitch_detection;
 use circular_buffer::CircularBuffer;
 use indicatif::ProgressBar;
-use rtrb::{Consumer, RingBuffer};
-use rustfft::{num_complex::Complex, FftPlanner};
 use std::path::Path;
-use std::slice;
 use std::{fs, thread, time::Duration};
-
-fn dominant_frequency(samples: &[f32], sample_rate: f32) -> f32 {
-    let mut planner = FftPlanner::new();
-    let fft = planner.plan_fft_forward(samples.len());
-
-    let mut buffer: Vec<Complex<f32>> = samples.iter().map(|&v| Complex::new(v, 0.0)).collect();
-
-    fft.process(&mut buffer);
-
-    let mut max_mag = 0.0;
-    let mut max_index = 0;
-
-    for (i, c) in buffer.iter().enumerate().take(samples.len() / 2) {
-        let mag = c.re * c.re + c.im * c.im;
-
-        if mag > max_mag {
-            max_mag = mag;
-            max_index = i;
-        }
-    }
-
-    max_index as f32 * sample_rate / samples.len() as f32
-}
 
 pub fn transmit(path: &Path) {
     // Readying Packets
@@ -135,7 +110,8 @@ pub fn transmit(path: &Path) {
             }
 
             if sliding_window.is_full() {
-                let freq = dominant_frequency(sliding_window.as_slices().0, 44100.0);
+                let freq =
+                    pitch_detection::dominant_frequency(sliding_window.as_slices().0, 44100.0);
                 if (freq - 3000.0).abs() <= 10.0 {
                     agreement_detected = true;
                 }
@@ -145,8 +121,13 @@ pub fn transmit(path: &Path) {
         }
     }
 
+    // Play 500ms of handshake control freq
+    audio_output.playback(vec![Frequency::new_with_len(3050.0, 500)]);
+    audio_output.sink.sleep_until_end();
+
     // Handshake Established
     handshake_spinner.finish_with_message("Established Handshake");
+    thread::sleep(Duration::from_millis(100));
 
     // File Info
     let fileinfo_spinner = ProgressBar::new_spinner();
@@ -154,10 +135,29 @@ pub fn transmit(path: &Path) {
 
     // Transmitting FileInfo
     audio_output.playback(modulation::modulate(file_info_packet_encoded));
+    audio_output.playback(vec![Frequency::new_with_len(3150.0, 500)]); // EOT
     audio_output.sink.sleep_until_end();
 
     fileinfo_spinner.set_message("Listening for Confirmation");
-    thread::sleep(Duration::from_millis(500)); // replace with confirmation demodulation
+
+    let mut confirmation_detected = false;
+    while !confirmation_detected {
+        if let Ok(chunk) = audio_input.consumer.read_chunk(512) {
+            for sample in chunk {
+                sliding_window.push_back(sample);
+            }
+
+            if sliding_window.is_full() {
+                let freq =
+                    pitch_detection::dominant_frequency(sliding_window.as_slices().0, 44100.0);
+                if (freq - 3100.0).abs() <= 10.0 {
+                    confirmation_detected = true;
+                }
+            }
+        } else {
+            std::thread::yield_now();
+        }
+    }
 
     fileinfo_spinner.finish_with_message("Received Confirmation");
 
@@ -171,6 +171,7 @@ pub fn transmit(path: &Path) {
 
     audio_output.playback(modulation::modulate(file_transmission_packet_encoded));
     audio_output.sink.sleep_until_end();
+    transmission_progress.set_position((transmission_size - audio_output.playback_len()) as u64);
 
     transmission_progress.finish_with_message(format!("{} has been transmitted", &filename));
 }

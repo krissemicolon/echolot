@@ -2,6 +2,7 @@ mod audio;
 mod frequency;
 mod modulation;
 mod packets;
+mod pitch_detection;
 mod receive;
 mod transmit;
 

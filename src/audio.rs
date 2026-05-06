@@ -51,10 +51,14 @@ impl AudioOutputDevice {
         freqs.into_iter().for_each(|freq| {
             self.sink.append(
                 freq.sine_wave
-                    .take_duration(Duration::from_millis(100))
+                    .take_duration(Duration::from_millis(freq.len))
                     .amplify(1.0),
             );
         });
+    }
+
+    pub fn playback_len(&self) -> usize {
+        self.sink.len()
     }
 }
 
