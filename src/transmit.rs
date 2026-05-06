@@ -1,8 +1,11 @@
-use crate::audio;
 use crate::frequency::Frequency;
-use crate::modulation;
+use crate::modulation::{self, preamble};
 use crate::packets::{FileInfo, FileTransmission, Packet};
-use crate::pitch_detection;
+use crate::quantise::is_within_tolerance_to;
+use crate::{
+    audio, CONFIRMATION_FREQ, HANDSHAKE_RECEIVER_FREQ, HANDSHAKE_TRANSMITTER_FREQ, STD_TOLERANCE,
+};
+use crate::{pitch_detection, EOT_FREQ};
 use circular_buffer::CircularBuffer;
 use indicatif::ProgressBar;
 use std::path::Path;
@@ -95,13 +98,9 @@ pub fn transmit(path: &Path) {
     // Handshake: Agreement Part
     handshake_spinner.set_message("Listening for Receiver's Handshake Agreement");
 
-    // gives ringbuffer time to populate with audio samples
-    // takes approx 371.51ms with 44.1kHz
-    thread::sleep(Duration::from_millis(500));
-
     let mut agreement_detected = false;
 
-    let mut sliding_window = CircularBuffer::<16384, f32>::new();
+    let mut sliding_window = CircularBuffer::<2048, f32>::new();
 
     while !agreement_detected {
         if let Ok(chunk) = audio_input.consumer.read_chunk(512) {
@@ -112,7 +111,7 @@ pub fn transmit(path: &Path) {
             if sliding_window.is_full() {
                 let freq =
                     pitch_detection::dominant_frequency(sliding_window.as_slices().0, 44100.0);
-                if (freq - 3000.0).abs() <= 10.0 {
+                if is_within_tolerance_to(freq, HANDSHAKE_RECEIVER_FREQ, STD_TOLERANCE) {
                     agreement_detected = true;
                 }
             }
@@ -121,21 +120,32 @@ pub fn transmit(path: &Path) {
         }
     }
 
+    // Wait to respond
+    thread::sleep(Duration::from_millis(500));
+
     // Play 500ms of handshake control freq
-    audio_output.playback(vec![Frequency::new_with_len(3050.0, 500)]);
+    audio_output.playback(vec![Frequency::new_with_len(
+        HANDSHAKE_TRANSMITTER_FREQ,
+        500,
+    )]);
     audio_output.sink.sleep_until_end();
 
     // Handshake Established
     handshake_spinner.finish_with_message("Established Handshake");
-    thread::sleep(Duration::from_millis(100));
+    thread::sleep(Duration::from_millis(500));
 
     // File Info
     let fileinfo_spinner = ProgressBar::new_spinner();
     fileinfo_spinner.set_message("Transmitting FileInfo");
 
     // Transmitting FileInfo
-    audio_output.playback(modulation::modulate(file_info_packet_encoded));
-    audio_output.playback(vec![Frequency::new_with_len(3150.0, 500)]); // EOT
+    let x = modulation::modulate(file_info_packet_encoded);
+    println!("{:?}", x.iter().map(|f| f.freq).collect::<Vec<f32>>()); // TODO
+
+    audio_output.playback(preamble());
+    audio_output.playback(x);
+    audio_output.playback(vec![Frequency::new_with_len(EOT_FREQ, 500)]); // EOT
+
     audio_output.sink.sleep_until_end();
 
     fileinfo_spinner.set_message("Listening for Confirmation");
@@ -150,7 +160,7 @@ pub fn transmit(path: &Path) {
             if sliding_window.is_full() {
                 let freq =
                     pitch_detection::dominant_frequency(sliding_window.as_slices().0, 44100.0);
-                if (freq - 3100.0).abs() <= 10.0 {
+                if is_within_tolerance_to(freq, CONFIRMATION_FREQ, STD_TOLERANCE) {
                     confirmation_detected = true;
                 }
             }

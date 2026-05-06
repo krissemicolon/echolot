@@ -1,11 +1,7 @@
-use crate::frequency::Frequency;
-
-pub fn quantise(freq: f32) -> f32 {
-    ((freq - 300.0) / 10.0).round().clamp(0.0, 255.0) * 10.0 + 300.0
-}
-
+use crate::{frequency::Frequency, PREAMBLE_FIRST_FREQ, PREAMBLE_SECOND_FREQ, PREAMBLE_THIRD_FREQ};
 /// 256-MFSK Modulation for packets
 /// with reserved frequencies for control packets
+
 pub fn modulate(data: Vec<u8>) -> Vec<Frequency> {
     data.iter()
         .map(|byte| Frequency::new(*byte as f32 * 10.0 + 300.0))
@@ -20,6 +16,14 @@ pub fn demodulate(freq: Vec<Frequency>) -> Option<Vec<u8>> {
         .map(|f| ((f.freq - 300.0) / 10.0) as u8)
         .collect();
     Some(data)
+}
+
+pub fn preamble() -> Vec<Frequency> {
+    vec![
+        Frequency::new(PREAMBLE_FIRST_FREQ),
+        Frequency::new(PREAMBLE_SECOND_FREQ),
+        Frequency::new(PREAMBLE_THIRD_FREQ),
+    ]
 }
 
 #[cfg(test)]

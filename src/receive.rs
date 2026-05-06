@@ -1,13 +1,19 @@
 use crate::{
     audio,
     frequency::Frequency,
-    modulation::{demodulate, quantise},
+    modulation::demodulate,
     packets::{FileInfo, Packet},
     pitch_detection,
+    quantise::{is_within_tolerance_to, quantise_to_codec},
+    BYTE_DURATION_MS, EOT_FREQ, HANDSHAKE_RECEIVER_FREQ, HANDSHAKE_TRANSMITTER_FREQ,
+    PREAMBLE_FIRST_FREQ, PREAMBLE_SECOND_FREQ, PREAMBLE_THIRD_FREQ, STD_TOLERANCE,
 };
 use circular_buffer::CircularBuffer;
 use indicatif::ProgressBar;
-use std::time::Duration;
+use std::{
+    process::exit,
+    time::{Duration, Instant},
+};
 
 pub fn receive() {
     // Setting up Audio Output
@@ -48,13 +54,14 @@ pub fn receive() {
     handshake_spinner.set_message("Establishing Handshake");
 
     // 1. Play 500ms of handshake control freq
-    audio_output.playback(vec![Frequency::new_with_len(3000.0, 500)]);
+    audio_output.playback(vec![Frequency::new_with_len(HANDSHAKE_RECEIVER_FREQ, 500)]);
     audio_output.sink.sleep_until_end();
 
-    let mut sliding_window = CircularBuffer::<16384, f32>::new();
+    let mut sliding_window = CircularBuffer::<2048, f32>::new();
 
     // 2. Listen for Response
     let mut handshake_detected = false;
+    let timer = Instant::now();
     while !handshake_detected {
         if let Ok(chunk) = audio_input.consumer.read_chunk(512) {
             for sample in chunk {
@@ -64,19 +71,31 @@ pub fn receive() {
             if sliding_window.is_full() {
                 let freq =
                     pitch_detection::dominant_frequency(sliding_window.as_slices().0, 44100.0);
-                if (freq - 3050.0).abs() <= 10.0 {
+                if is_within_tolerance_to(freq, HANDSHAKE_TRANSMITTER_FREQ, STD_TOLERANCE) {
                     handshake_detected = true;
                 }
             }
         } else {
             std::thread::yield_now();
         }
+        if Instant::now() > timer + Duration::from_secs(2) {
+            handshake_spinner.finish_with_message("Handshake failed");
+            exit(1);
+        }
     }
 
     handshake_spinner.finish_with_message("Established Handshake");
 
-    let mut freqs: Vec<Frequency> = vec![];
+    let mut sliding_window = CircularBuffer::<2048, f32>::new();
+
+    let mut fileinfo_freqs: Vec<Frequency> = vec![];
+    let mut preamble_first = false;
+    let mut preamble_second = false;
+    let mut preamble_third = false;
+    let mut preamble_detected = false;
     let mut eot_detected = false;
+    let mut timer: Instant = Instant::now();
+    let mut currently_min = STD_TOLERANCE + 1.0;
 
     while !eot_detected {
         if let Ok(chunk) = audio_input.consumer.read_chunk(512) {
@@ -87,16 +106,33 @@ pub fn receive() {
             if sliding_window.is_full() {
                 let raw_freq =
                     pitch_detection::dominant_frequency(sliding_window.as_slices().0, 44100.0);
-                let quantised_freq = Frequency::new(quantise(raw_freq));
+                let quantised_freq = Frequency::new(quantise_to_codec(raw_freq));
+                // println!("{raw_freq}\t\t{:?}", quantised_freq);
 
-                // EOT
-                if (raw_freq - 3150.0).abs() <= 10.0 {
-                    eot_detected = true;
-                    break;
-                }
+                if preamble_detected {
+                    // EOT
+                    if is_within_tolerance_to(raw_freq, EOT_FREQ, STD_TOLERANCE) {
+                        eot_detected = true;
+                        break;
+                    }
 
-                if freqs.last() != Some(&quantised_freq) {
-                    freqs.push(quantised_freq);
+                    if Instant::now() >= timer + Duration::from_millis(BYTE_DURATION_MS) {
+                        println!("ADDED FREQ {:?}", &quantised_freq);
+                        fileinfo_freqs.push(quantised_freq);
+                        timer = Instant::now();
+                    }
+                } else {
+                    if is_within_tolerance_to(raw_freq, PREAMBLE_THIRD_FREQ, STD_TOLERANCE) {
+                        let distance = (raw_freq - PREAMBLE_THIRD_FREQ).abs();
+                        println!("THIRDDET {}", distance);
+                        if distance < currently_min {
+                            println!("CURMIN");
+                            currently_min = distance;
+                        } else {
+                            preamble_detected = true;
+                            println!("PREAMBLE TIMER STARTED")
+                        }
+                    }
                 }
             }
         } else {
@@ -104,7 +140,12 @@ pub fn receive() {
         }
     }
 
-    let received_fileinfo = FileInfo::decode(demodulate(freqs).unwrap());
+    println!(
+        "Freqs Received: {:?}",
+        fileinfo_freqs.iter().map(|f| f.freq).collect::<Vec<f32>>()
+    );
+
+    let received_fileinfo = FileInfo::decode(demodulate(fileinfo_freqs).unwrap());
 
     println!("Demodulated: {:?}", received_fileinfo);
 }

@@ -7,15 +7,17 @@ pub trait Packet {
     {
         let bin = bincode::serialize(self).expect("Codec failed on Serialisation");
 
-        lzma::compress(&bin, 9).expect("Codec failed on Compression")
+        // lzma::compress(&bin, 9).expect("Codec failed on Compression")
+        bin
     }
 
     fn decode(encoded_packet: Vec<u8>) -> Self
     where
         Self: Sized + Serialize + for<'a> Deserialize<'a>,
     {
-        let decompressed =
-            lzma::decompress(&encoded_packet).expect("Codec failed on Decompression");
+        // let decompressed =
+        //     lzma::decompress(&encoded_packet).expect("Codec failed on Decompression");
+        let decompressed = encoded_packet;
 
         bincode::deserialize(&decompressed)
             .ok()

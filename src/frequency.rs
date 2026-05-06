@@ -1,5 +1,7 @@
 use rodio::source::SineWave;
 
+use crate::BYTE_DURATION_MS;
+
 /// Wrapper around Rodio's SineWave
 /// because it doesnt expose frequency field
 /// this is a memory overhead that could be improved
@@ -14,7 +16,7 @@ impl Frequency {
     pub fn new(freq: f32) -> Self {
         Self {
             freq,
-            len: 100,
+            len: BYTE_DURATION_MS,
             sine_wave: SineWave::new(freq),
         }
     }

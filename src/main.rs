@@ -3,6 +3,7 @@ mod frequency;
 mod modulation;
 mod packets;
 mod pitch_detection;
+mod quantise;
 mod receive;
 mod transmit;
 
@@ -11,7 +12,17 @@ use crate::transmit::transmit;
 use clap::{Parser, Subcommand};
 use std::path::Path;
 
-const BYTE_DURATION_MS: u64 = 100;
+const BYTE_DURATION_MS: u64 = 800;
+const STD_TOLERANCE: f32 = 10.0;
+
+// Control Frequencies
+const EOT_FREQ: f32 = 3150.0;
+const HANDSHAKE_RECEIVER_FREQ: f32 = 3000.0;
+const HANDSHAKE_TRANSMITTER_FREQ: f32 = 3050.0;
+const CONFIRMATION_FREQ: f32 = 3100.0;
+const PREAMBLE_FIRST_FREQ: f32 = 3400.0;
+const PREAMBLE_SECOND_FREQ: f32 = 2400.0;
+const PREAMBLE_THIRD_FREQ: f32 = 2800.0;
 
 #[derive(Parser)]
 #[clap(version, about)]
