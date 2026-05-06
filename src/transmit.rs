@@ -100,7 +100,7 @@ pub fn transmit(path: &Path) {
 
     let mut agreement_detected = false;
 
-    let mut sliding_window = CircularBuffer::<2048, f32>::new();
+    let mut sliding_window = CircularBuffer::<16384, f32>::new();
 
     while !agreement_detected {
         if let Ok(chunk) = audio_input.consumer.read_chunk(512) {

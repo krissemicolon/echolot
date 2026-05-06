@@ -57,7 +57,7 @@ pub fn receive() {
     audio_output.playback(vec![Frequency::new_with_len(HANDSHAKE_RECEIVER_FREQ, 500)]);
     audio_output.sink.sleep_until_end();
 
-    let mut sliding_window = CircularBuffer::<2048, f32>::new();
+    let mut sliding_window = CircularBuffer::<16384, f32>::new();
 
     // 2. Listen for Response
     let mut handshake_detected = false;
@@ -86,16 +86,17 @@ pub fn receive() {
 
     handshake_spinner.finish_with_message("Established Handshake");
 
-    let mut sliding_window = CircularBuffer::<2048, f32>::new();
+    let mut sliding_window = CircularBuffer::<16384, f32>::new();
 
     let mut fileinfo_freqs: Vec<Frequency> = vec![];
     let mut preamble_first = false;
     let mut preamble_second = false;
-    let mut preamble_third = false;
     let mut preamble_detected = false;
     let mut eot_detected = false;
     let mut timer: Instant = Instant::now();
-    let mut currently_min = STD_TOLERANCE + 1.0;
+    let mut first_time: Option<Instant> = None;
+    let mut second_time: Option<Instant> = None;
+    let mut interval_time: Option<Duration> = None;
 
     while !eot_detected {
         if let Ok(chunk) = audio_input.consumer.read_chunk(512) {
@@ -116,21 +117,47 @@ pub fn receive() {
                         break;
                     }
 
-                    if Instant::now() >= timer + Duration::from_millis(BYTE_DURATION_MS) {
-                        println!("ADDED FREQ {:?}", &quantised_freq);
-                        fileinfo_freqs.push(quantised_freq);
-                        timer = Instant::now();
+                    if let Some(interval) = interval_time {
+                        if Instant::now() >= timer + interval {
+                            println!("ADDED FREQ {:?}", &quantised_freq);
+                            fileinfo_freqs.push(quantised_freq);
+                            timer = Instant::now();
+                        }
                     }
                 } else {
-                    if is_within_tolerance_to(raw_freq, PREAMBLE_THIRD_FREQ, STD_TOLERANCE) {
-                        let distance = (raw_freq - PREAMBLE_THIRD_FREQ).abs();
-                        println!("THIRDDET {}", distance);
-                        if distance < currently_min {
-                            println!("CURMIN");
-                            currently_min = distance;
-                        } else {
-                            preamble_detected = true;
-                            println!("PREAMBLE TIMER STARTED")
+                    if !preamble_first
+                        && is_within_tolerance_to(raw_freq, PREAMBLE_FIRST_FREQ, STD_TOLERANCE)
+                    {
+                        preamble_first = true;
+                        first_time = Some(Instant::now());
+                    }
+                    if !preamble_second
+                        && is_within_tolerance_to(raw_freq, PREAMBLE_SECOND_FREQ, STD_TOLERANCE)
+                    {
+                        preamble_second = true;
+                        second_time = Some(Instant::now());
+                    }
+
+                    if preamble_first && preamble_second && !preamble_detected {
+                        interval_time = Some(
+                            second_time.expect("Time Calculation Error")
+                                - first_time.expect("Time Calculation Error"),
+                        );
+
+                        if let Some(interval) = interval_time {
+                            if Instant::now()
+                                >= second_time.expect("Time Calculation Error")
+                                    + interval
+                                    + (interval / 2)
+                            {
+                                assert!(is_within_tolerance_to(
+                                    raw_freq,
+                                    PREAMBLE_THIRD_FREQ,
+                                    STD_TOLERANCE
+                                ));
+                                preamble_detected = true;
+                                timer = Instant::now();
+                            }
                         }
                     }
                 }
