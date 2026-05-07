@@ -12,8 +12,12 @@ use crate::transmit::transmit;
 use clap::{Parser, Subcommand};
 use std::path::Path;
 
-const BYTE_DURATION_MS: u64 = 2000;
+const BYTE_DURATION_MS: u64 = 200;
 const STD_TOLERANCE: f32 = 10.0;
+
+// Modulation
+const MOD_OFFSET: f32 = 300.0;
+const MOD_STEP_SIZE: f32 = 150.0;
 
 // Control Frequencies
 const EOT_FREQ: f32 = 3150.0;

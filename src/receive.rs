@@ -90,7 +90,7 @@ pub fn receive() {
     handshake_spinner.finish_with_message("Established Handshake");
 
     let mut sliding_window = CircularBuffer::<16384, f32>::new();
-    let mut freq_bucket = CircularBuffer::<20, f32>::new();
+    let mut freq_bucket = CircularBuffer::<10, f32>::new();
 
     let mut fileinfo_freqs: Vec<Frequency> = vec![];
     let mut preamble_first = false;
@@ -119,7 +119,7 @@ pub fn receive() {
 
             freq_bucket.push_back(raw_freq);
 
-            // println!("{raw_freq}\t\t{:?}", freq_bucket);
+            println!("{raw_freq}");
 
             if preamble_detected {
                 // EOT
@@ -130,10 +130,28 @@ pub fn receive() {
 
                 if let Some(interval) = interval_time {
                     if Instant::now() >= timer + interval {
-                        let average_freq =
-                            freq_bucket.iter().sum::<f32>() / freq_bucket.len() as f32;
-                        let interval_freq = Frequency::new(quantise_to_codec(average_freq));
+                        let len = freq_bucket.len();
+
+                        let mut tmp = [0.0_f32; 200];
+
+                        for (i, v) in freq_bucket.iter().enumerate() {
+                            tmp[i] = *v;
+                        }
+
+                        tmp[..len].sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+
+                        let median_freq = if len == 0 {
+                            0.0
+                        } else if len % 2 == 1 {
+                            tmp[len / 2]
+                        } else {
+                            let mid = len / 2;
+                            (tmp[mid - 1] + tmp[mid]) * 0.5
+                        };
+
+                        let interval_freq = Frequency::new(quantise_to_codec(median_freq));
                         println!("ADDED FREQ {:?}", &interval_freq);
+
                         fileinfo_freqs.push(interval_freq);
                         timer = Instant::now();
                     }

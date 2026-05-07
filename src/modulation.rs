@@ -1,21 +1,44 @@
-use crate::{frequency::Frequency, PREAMBLE_FIRST_FREQ, PREAMBLE_SECOND_FREQ, PREAMBLE_THIRD_FREQ};
-/// 256-MFSK Modulation for packets
-/// with reserved frequencies for control packets
+use crate::{
+    frequency::Frequency, MOD_OFFSET, MOD_STEP_SIZE, PREAMBLE_FIRST_FREQ, PREAMBLE_SECOND_FREQ,
+    PREAMBLE_THIRD_FREQ,
+};
 
+/// 16-MFSK Modulation for packets
+/// with reserved frequencies for control packets
 pub fn modulate(data: Vec<u8>) -> Vec<Frequency> {
+    let m = |n: u8| -> f32 { n as f32 * MOD_STEP_SIZE + MOD_OFFSET };
+
     data.iter()
-        .map(|byte| Frequency::new(*byte as f32 * 10.0 + 300.0))
+        .flat_map(|&byte| split_byte(byte))
+        .map(|n| Frequency::new(m(n)))
         .collect()
 }
 
-/// 256-MFSK Demodulation for data packets
+/// 16-MFSK Demodulation for data packets
 /// with reserved frequencies for control packets
-pub fn demodulate(freq: Vec<Frequency>) -> Option<Vec<u8>> {
-    let data: Vec<u8> = freq
-        .into_iter()
-        .map(|f| ((f.freq - 300.0) / 10.0) as u8)
-        .collect();
-    Some(data)
+pub fn demodulate(freqs: Vec<Frequency>) -> Option<Vec<u8>> {
+    let d = |f: f32| -> u8 { ((f - MOD_OFFSET) / MOD_STEP_SIZE) as u8 };
+
+    if freqs.len() % 2 != 0 {
+        return None;
+    }
+
+    Some(
+        freqs
+            .chunks_exact(2)
+            .map(|pair| create_byte(d(pair[0].freq), d(pair[1].freq)))
+            .collect(),
+    )
+}
+
+fn split_byte(value: u8) -> [u8; 2] {
+    let high = (value >> 4) & 0x0F;
+    let low = value & 0x0F;
+    [high, low]
+}
+
+fn create_byte(high: u8, low: u8) -> u8 {
+    ((high & 0x0F) << 4) | (low & 0x0F)
 }
 
 pub fn preamble() -> Vec<Frequency> {
