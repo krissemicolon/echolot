@@ -45,20 +45,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_interplay() {
-        let input_packet = FileInfo {
-            file_name: "foo.txt".to_string(),
-            file_size: 1711,
-            checksum: 0,
-        };
-        let freqs: Vec<Frequency> = modulate(input_packet.encode());
-        let packet_encoded = demodulate(freqs).unwrap();
-        let output_packet = FileInfo::decode(packet_encoded);
-
-        assert_eq!(output_packet, input_packet);
-    }
-
-    #[test]
     fn test_modulate_data() {
         let fileinfo_packet = FileInfo {
             file_name: "foo.txt".to_string(),
@@ -124,5 +110,32 @@ mod tests {
         };
 
         assert_eq!(expected_packet, packet);
+    }
+
+    #[test]
+    fn test_interplay() {
+        let input_packet = FileInfo {
+            file_name: "foo.txt".to_string(),
+            file_size: 1711,
+            checksum: 0,
+        };
+        let freqs: Vec<Frequency> = modulate(input_packet.encode());
+        let packet_encoded = demodulate(freqs).unwrap();
+        let output_packet = FileInfo::decode(packet_encoded);
+
+        assert_eq!(output_packet, input_packet);
+    }
+
+    #[test]
+    fn test_binops() {
+        let expected_values: Vec<u8> = (0..=255).collect();
+        let rebuilt_values: Vec<u8> = expected_values
+            .iter()
+            .copied()
+            .map(|v| split_byte(v))
+            .map(|partials| create_byte(partials[0], partials[1]))
+            .collect();
+
+        assert_eq!(rebuilt_values, expected_values);
     }
 }

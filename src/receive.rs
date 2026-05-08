@@ -78,6 +78,10 @@ pub fn receive() {
         }
 
         if Instant::now() >= next_tick {
+            println!(
+                "NANOSEC TIMING DIFF {}",
+                (Instant::now() - next_tick).as_nanos()
+            );
             next_tick += interval;
             let samples: Vec<f32> = interval_samples.iter().copied().collect::<Vec<f32>>();
             let freq = pitch_detection::dominant_frequency(&samples, audio_input.sample_rate);

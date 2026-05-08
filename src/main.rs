@@ -12,7 +12,7 @@ use crate::transmit::transmit;
 use clap::{Parser, Subcommand};
 use std::path::Path;
 
-const BYTE_DURATION_MS: u64 = 200;
+const BYTE_DURATION_MS: u64 = 600;
 const STD_TOLERANCE: f32 = 20.0;
 const SAMPLE_BUFFER_SIZE: usize = 512 * 16;
 
