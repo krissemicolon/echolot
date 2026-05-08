@@ -16,14 +16,10 @@ pub fn modulate(data: Vec<u8>) -> Vec<Frequency> {
 pub fn demodulate(freqs: Vec<Frequency>) -> Option<Vec<u8>> {
     let d = |f: f32| -> u8 { ((f - MOD_OFFSET) / MOD_STEP_SIZE) as u8 };
 
-    if freqs.len() % 2 != 0 {
-        return None;
-    }
-
     Some(
         freqs
             .chunks_exact(2)
-            .map(|pair| create_byte(d(pair[0].freq), d(pair[1].freq)))
+            .map(|pair| create_byte(d(pair[0].freq), d(pair.get(1).unwrap_or(&pair[0]).freq)))
             .collect(),
     )
 }

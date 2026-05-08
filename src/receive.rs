@@ -78,15 +78,9 @@ pub fn receive() {
         }
 
         if Instant::now() >= next_tick {
-            println!(
-                "NANOSEC TIMING DIFF {}",
-                (Instant::now() - next_tick).as_nanos()
-            );
             next_tick += interval;
             let samples: Vec<f32> = interval_samples.iter().copied().collect::<Vec<f32>>();
             let freq = pitch_detection::dominant_frequency(&samples, audio_input.sample_rate);
-
-            println!("FULL and EVAL {freq}");
 
             // SOT Detection
             if !in_packet && is_within_tolerance_to(freq, SOT_FREQ, STD_TOLERANCE) {
@@ -110,11 +104,10 @@ pub fn receive() {
         fileinfo_freqs.iter().map(|f| f.freq).collect::<Vec<f32>>()
     );
 
-    let processed_fileinfo_freqs = fileinfo_freqs
-        .iter()
-        .cloned()
-        .step_by(2)
-        .collect::<Vec<Frequency>>();
+    let processed_fileinfo_freqs: Vec<Frequency> = fileinfo_freqs
+        .chunks_exact(2)
+        .map(|pair| pair[1].clone())
+        .collect();
 
     println!(
         "Freqs Received: {:?}",
