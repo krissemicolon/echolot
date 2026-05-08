@@ -65,8 +65,8 @@ pub fn receive() {
     audio_output.playback(vec![Frequency::new_with_len(HANDSHAKE_RECEIVER_FREQ, 300)]);
     audio_output.sink.sleep_until_end();
 
-    let num_samples: usize =
-        (((BYTE_DURATION_MS / 1000) / 2) * audio_input.sample_rate.0 as u64) as usize;
+    let num_samples =
+        ((BYTE_DURATION_MS as f32 / 1000.0) * audio_input.sample_rate.0 as f32) as usize;
     let mut interval_samples = HeapRb::<f32>::new(num_samples);
     let mut in_packet = false;
     let handshake_deadline = Instant::now() + Duration::from_secs(2);

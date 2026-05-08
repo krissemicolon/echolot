@@ -97,10 +97,9 @@ pub fn transmit(path: &Path) {
         Err(e) => panic!("Could Not Start Listening To Microphone: {}", e),
     }
 
-    let num_samples: usize =
-        (((BYTE_DURATION_MS / 1000) / 2) * audio_input.sample_rate.0 as u64) as usize;
+    let num_samples =
+        ((BYTE_DURATION_MS as f32 / 1000.0) * audio_input.sample_rate.0 as f32) as usize;
     let mut interval_samples = HeapRb::<f32>::new(num_samples);
-
     loop {
         if let Ok(chunk) = audio_input.consumer.read_chunk(512) {
             for sample in chunk {
@@ -123,7 +122,6 @@ pub fn transmit(path: &Path) {
             interval_samples.clear();
         }
     }
-
     // File Info Transmission
     let fileinfo_spinner = ProgressBar::new_spinner();
     fileinfo_spinner.set_message("Transmitting FileInfo");
