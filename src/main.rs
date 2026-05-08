@@ -1,4 +1,5 @@
 mod audio;
+mod error_correction;
 mod frequency;
 mod modulation;
 mod packets;
@@ -12,16 +13,14 @@ use crate::transmit::transmit;
 use clap::{Parser, Subcommand};
 use std::path::Path;
 
-const BYTE_DURATION_MS: u64 = 300;
+const BYTE_DURATION_MS: u64 = 50;
 const STD_TOLERANCE: f32 = 20.0;
-const SAMPLE_BUFFER_SIZE: usize = 512 * 16;
 
 // Modulation
-const MOD_OFFSET: f32 = 300.0;
-const MOD_STEP_SIZE: f32 = 150.0;
+const MOD_OFFSET: f32 = 1024.0;
+const MOD_STEP_SIZE: f32 = 256.0;
 
 // Control Frequencies
-const HANDSHAKE_RECEIVER_FREQ: f32 = 3000.0;
 const SOT_FREQ: f32 = 8192.0;
 const EOT_FREQ: f32 = 8704.0;
 const CONFIRMATION_FREQ: f32 = 3100.0;

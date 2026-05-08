@@ -2,7 +2,7 @@ use crate::frequency::Frequency;
 use crate::packets::{FileInfo, FileTransmission, Packet};
 use crate::quantise::is_within_tolerance_to;
 use crate::{
-    BYTE_DURATION_MS, CONFIRMATION_FREQ, HANDSHAKE_RECEIVER_FREQ, SAMPLE_BUFFER_SIZE,
+    BYTE_DURATION_MS, CONFIRMATION_FREQ,
     STD_TOLERANCE, audio,
 };
 use crate::{EOT_FREQ, pitch_detection};

@@ -1,6 +1,5 @@
 use crate::{
-    BYTE_DURATION_MS, EOT_FREQ, HANDSHAKE_RECEIVER_FREQ, SAMPLE_BUFFER_SIZE, SOT_FREQ,
-    STD_TOLERANCE, audio,
+    BYTE_DURATION_MS, EOT_FREQ, SOT_FREQ, STD_TOLERANCE, audio,
     frequency::Frequency,
     modulation::demodulate,
     packets::{FileInfo, Packet},
@@ -82,11 +81,6 @@ pub fn receive() {
             let samples: Vec<f32> = interval_samples.iter().copied().collect::<Vec<f32>>();
             let freq = pitch_detection::dominant_frequency(&samples, audio_input.sample_rate);
 
-            // SOT Detection
-            if !in_packet && is_within_tolerance_to(freq, SOT_FREQ, STD_TOLERANCE) {
-                fileinfo_spinner.set_message("Receiving FileInfo Transmission");
-                in_packet = true;
-            }
             // EOT Detection
             if in_packet && is_within_tolerance_to(freq, EOT_FREQ, STD_TOLERANCE) {
                 in_packet = false;
@@ -95,6 +89,12 @@ pub fn receive() {
 
             if in_packet {
                 fileinfo_freqs.push(Frequency::new(quantise_to_codec(freq)));
+            }
+
+            // SOT Detection
+            if !in_packet && is_within_tolerance_to(freq, SOT_FREQ, STD_TOLERANCE) {
+                fileinfo_spinner.set_message("Receiving FileInfo Transmission");
+                in_packet = true;
             }
         }
     }
