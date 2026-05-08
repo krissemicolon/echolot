@@ -13,20 +13,18 @@ use clap::{Parser, Subcommand};
 use std::path::Path;
 
 const BYTE_DURATION_MS: u64 = 200;
-const STD_TOLERANCE: f32 = 10.0;
+const STD_TOLERANCE: f32 = 20.0;
+const SAMPLE_BUFFER_SIZE: usize = 512 * 16;
 
 // Modulation
 const MOD_OFFSET: f32 = 300.0;
 const MOD_STEP_SIZE: f32 = 150.0;
 
 // Control Frequencies
-const EOT_FREQ: f32 = 3150.0;
 const HANDSHAKE_RECEIVER_FREQ: f32 = 3000.0;
-const HANDSHAKE_TRANSMITTER_FREQ: f32 = 3050.0;
+const SOT_FREQ: f32 = 8192.0;
+const EOT_FREQ: f32 = 8704.0;
 const CONFIRMATION_FREQ: f32 = 3100.0;
-const PREAMBLE_FIRST_FREQ: f32 = 3400.0;
-const PREAMBLE_SECOND_FREQ: f32 = 2400.0;
-const PREAMBLE_THIRD_FREQ: f32 = 2800.0;
 
 #[derive(Parser)]
 #[clap(version, about)]

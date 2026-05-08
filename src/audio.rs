@@ -1,15 +1,16 @@
 use std::time::Duration;
 
 use cpal::traits::HostTrait;
-use cpal::{
-    traits::{DeviceTrait, StreamTrait},
-    StreamConfig,
-};
 use cpal::{SampleRate, Stream};
+use cpal::{
+    StreamConfig,
+    traits::{DeviceTrait, StreamTrait},
+};
 use rodio::{OutputStream, OutputStreamHandle, Sink, Source};
 use rtrb::{Consumer, RingBuffer};
 
 use crate::frequency::Frequency;
+use crate::{BYTE_DURATION_MS, SAMPLE_BUFFER_SIZE};
 
 pub struct AudioOutputDevice {
     pub name: String,
@@ -89,7 +90,7 @@ impl AudioInputDevice {
 
         let err_fn = |err| eprintln!("An Error Occurred On Audio Input: {}", err);
 
-        let (mut producer, mut consumer) = RingBuffer::<f32>::new(16384);
+        let (mut producer, mut consumer) = RingBuffer::<f32>::new(512);
 
         let sample_format = config.sample_format();
         let stream_config: StreamConfig = config.into();

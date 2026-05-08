@@ -1,7 +1,4 @@
-use crate::{
-    frequency::Frequency, MOD_OFFSET, MOD_STEP_SIZE, PREAMBLE_FIRST_FREQ, PREAMBLE_SECOND_FREQ,
-    PREAMBLE_THIRD_FREQ,
-};
+use crate::{frequency::Frequency, MOD_OFFSET, MOD_STEP_SIZE};
 
 /// 16-MFSK Modulation for packets
 /// with reserved frequencies for control packets
@@ -39,14 +36,6 @@ fn split_byte(value: u8) -> [u8; 2] {
 
 fn create_byte(high: u8, low: u8) -> u8 {
     ((high & 0x0F) << 4) | (low & 0x0F)
-}
-
-pub fn preamble() -> Vec<Frequency> {
-    vec![
-        Frequency::new(PREAMBLE_FIRST_FREQ),
-        Frequency::new(PREAMBLE_SECOND_FREQ),
-        Frequency::new(PREAMBLE_THIRD_FREQ),
-    ]
 }
 
 #[cfg(test)]

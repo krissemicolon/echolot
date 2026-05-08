@@ -1,13 +1,15 @@
 use crate::frequency::Frequency;
-use crate::modulation::{self, preamble};
 use crate::packets::{FileInfo, FileTransmission, Packet};
 use crate::quantise::is_within_tolerance_to;
 use crate::{
-    audio, CONFIRMATION_FREQ, HANDSHAKE_RECEIVER_FREQ, HANDSHAKE_TRANSMITTER_FREQ, STD_TOLERANCE,
+    BYTE_DURATION_MS, CONFIRMATION_FREQ, HANDSHAKE_RECEIVER_FREQ, SAMPLE_BUFFER_SIZE,
+    STD_TOLERANCE, audio,
 };
-use crate::{pitch_detection, EOT_FREQ};
-use circular_buffer::CircularBuffer;
+use crate::{EOT_FREQ, pitch_detection};
+use crate::{SOT_FREQ, modulation};
 use indicatif::ProgressBar;
+use ringbuf::HeapRb;
+use ringbuf::traits::{Consumer, Observer, RingBuffer};
 use std::path::Path;
 use std::{fs, thread, time::Duration};
 
@@ -86,7 +88,7 @@ pub fn transmit(path: &Path) {
         }
     };
 
-    // Handshake: Initiation Part
+    // Handshake
     let handshake_spinner = ProgressBar::new_spinner();
     handshake_spinner.enable_steady_tick(Duration::from_millis(60));
 
@@ -95,84 +97,73 @@ pub fn transmit(path: &Path) {
         Err(e) => panic!("Could Not Start Listening To Microphone: {}", e),
     }
 
-    // Handshake: Agreement Part
-    handshake_spinner.set_message("Listening for Receiver's Handshake Agreement");
+    let num_samples: usize =
+        (((BYTE_DURATION_MS / 1000) / 2) * audio_input.sample_rate.0 as u64) as usize;
+    let mut interval_samples = HeapRb::<f32>::new(num_samples);
 
-    let mut agreement_detected = false;
-
-    let mut sliding_window = CircularBuffer::<16384, f32>::new();
-
-    while !agreement_detected {
+    loop {
         if let Ok(chunk) = audio_input.consumer.read_chunk(512) {
             for sample in chunk {
-                sliding_window.push_back(sample);
+                interval_samples.push_overwrite(sample);
+            }
+        }
+
+        if interval_samples.is_full() {
+            let samples: Vec<f32> = interval_samples.iter().copied().collect::<Vec<f32>>();
+            let freq = pitch_detection::dominant_frequency(&samples, audio_input.sample_rate);
+
+            println!("listen hs FULL and EVAL {freq}");
+
+            // Handshake Detection
+            if is_within_tolerance_to(freq, HANDSHAKE_RECEIVER_FREQ, STD_TOLERANCE) {
+                handshake_spinner.set_message("Established Handshake");
+                break;
             }
 
-            if sliding_window.is_full() {
-                let freq = pitch_detection::dominant_frequency(
-                    sliding_window.as_slices().0,
-                    audio_input.sample_rate,
-                );
-                if is_within_tolerance_to(freq, HANDSHAKE_RECEIVER_FREQ, STD_TOLERANCE) {
-                    agreement_detected = true;
-                }
-            }
-        } else {
-            std::thread::yield_now();
+            interval_samples.clear();
         }
     }
 
-    // Wait to respond
-    thread::sleep(Duration::from_millis(500));
-
-    // Play 500ms of handshake control freq
-    audio_output.playback(vec![Frequency::new_with_len(
-        HANDSHAKE_TRANSMITTER_FREQ,
-        500,
-    )]);
-    audio_output.sink.sleep_until_end();
-
-    // Handshake Established
-    handshake_spinner.finish_with_message("Established Handshake");
-    thread::sleep(Duration::from_millis(500));
-
-    // File Info
+    // File Info Transmission
     let fileinfo_spinner = ProgressBar::new_spinner();
     fileinfo_spinner.set_message("Transmitting FileInfo");
 
     // Transmitting FileInfo
-    let x = modulation::modulate(file_info_packet_encoded);
-    println!("{:?}", x.iter().map(|f| f.freq).collect::<Vec<f32>>()); // TODO
+    let fileinfo_freqs = modulation::modulate(file_info_packet_encoded);
+    println!(
+        "{:?}",
+        fileinfo_freqs.iter().map(|f| f.freq).collect::<Vec<f32>>()
+    );
 
-    audio_output.playback(preamble());
-    audio_output.playback(x);
-    audio_output.playback(vec![Frequency::new_with_len(EOT_FREQ, 500)]); // EOT
+    audio_output.playback(vec![Frequency::new(SOT_FREQ)]);
+    audio_output.playback(fileinfo_freqs);
+    audio_output.playback(vec![Frequency::new_with_len(EOT_FREQ, 500)]);
 
     audio_output.sink.sleep_until_end();
 
     fileinfo_spinner.set_message("Listening for Confirmation");
 
-    let mut confirmation_detected = false;
-    while !confirmation_detected {
-        if let Ok(chunk) = audio_input.consumer.read_chunk(512) {
-            for sample in chunk {
-                sliding_window.push_back(sample);
-            }
+    /*
+       let mut confirmation_detected = false;
+       while !confirmation_detected {
+           if let Ok(chunk) = audio_input.consumer.read_chunk(512) {
+               for sample in chunk {
+                   sliding_window.push_back(sample);
+               }
 
-            if sliding_window.is_full() {
-                let freq = pitch_detection::dominant_frequency(
-                    sliding_window.as_slices().0,
-                    audio_input.sample_rate,
-                );
-                if is_within_tolerance_to(freq, CONFIRMATION_FREQ, STD_TOLERANCE) {
-                    confirmation_detected = true;
-                }
-            }
-        } else {
-            std::thread::yield_now();
-        }
-    }
-
+               if sliding_window.is_full() {
+                   let freq = pitch_detection::dominant_frequency(
+                       sliding_window.as_slices().0,
+                       audio_input.sample_rate,
+                   );
+                   if is_within_tolerance_to(freq, CONFIRMATION_FREQ, STD_TOLERANCE) {
+                       confirmation_detected = true;
+                   }
+               }
+           } else {
+               std::thread::yield_now();
+           }
+       }
     fileinfo_spinner.finish_with_message("Received Confirmation");
 
     let transmission_size = &file_transmission_packet_encoded.len();
@@ -188,4 +179,5 @@ pub fn transmit(path: &Path) {
     transmission_progress.set_position((transmission_size - audio_output.playback_len()) as u64);
 
     transmission_progress.finish_with_message(format!("{} has been transmitted", &filename));
+    */
 }
