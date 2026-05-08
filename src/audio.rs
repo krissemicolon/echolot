@@ -10,7 +10,6 @@ use rodio::{OutputStream, OutputStreamHandle, Sink, Source};
 use rtrb::{Consumer, RingBuffer};
 
 use crate::frequency::Frequency;
-use crate::BYTE_DURATION_MS;
 
 pub struct AudioOutputDevice {
     pub name: String,

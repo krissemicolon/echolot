@@ -13,7 +13,7 @@ use crate::transmit::transmit;
 use clap::{Parser, Subcommand};
 use std::path::Path;
 
-const BYTE_DURATION_MS: u64 = 50;
+const SYMBOL_DURATION_MS: u64 = 120;
 const STD_TOLERANCE: f32 = 20.0;
 
 // Modulation
@@ -23,7 +23,8 @@ const MOD_STEP_SIZE: f32 = 256.0;
 // Control Frequencies
 const SOT_FREQ: f32 = 8192.0;
 const EOT_FREQ: f32 = 8704.0;
-const CONFIRMATION_FREQ: f32 = 3100.0;
+const CONFIRMATION_ACCEPT_FREQ: f32 = 3100.0;
+const CONFIRMATION_DENY_FREQ: f32 = 4100.0;
 
 #[derive(Parser)]
 #[clap(version, about)]

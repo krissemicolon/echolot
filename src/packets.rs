@@ -8,18 +8,21 @@ pub trait Packet {
     {
         let bin = bincode::serialize(self).expect("Codec failed on Serialisation");
 
-        let compressed = lzma::compress(&bin, 9).expect("Codec failed on Compression");
+        // let compressed = lzma::compress(&bin, 9).expect("Codec failed on Compression");
 
-        rs_encode_payload(&compressed)
+        // rs_encode_payload(&compressed)
+        bin
     }
 
     fn decode(encoded_packet: Vec<u8>) -> Self
     where
         Self: Sized + Serialize + for<'a> Deserialize<'a>,
     {
-        let recovered = rs_decode_payload(&encoded_packet);
+        // let recovered = rs_decode_payload(&encoded_packet);
 
-        let decompressed = lzma::decompress(&recovered).expect("Codec failed on Decompression");
+        // let decompressed = lzma::decompress(&recovered).expect("Codec failed on Decompression");
+        //
+        let decompressed = encoded_packet;
 
         bincode::deserialize(&decompressed)
             .ok()
@@ -31,7 +34,6 @@ pub trait Packet {
 pub struct FileInfo {
     pub file_name: String,
     pub file_size: u64,
-    pub checksum: u32,
 }
 
 impl Packet for FileInfo {}
@@ -60,7 +62,6 @@ mod tests {
         let input = FileInfo {
             file_name: "foo.txt".to_string(),
             file_size: 1711,
-            checksum: 100,
         };
 
         let encoded = input.encode();
@@ -87,7 +88,6 @@ mod tests {
         let input = FileInfo {
             file_name: "bar.bin".to_string(),
             file_size: 33,
-            checksum: 42,
         };
         let mut encoded = input.encode();
 
