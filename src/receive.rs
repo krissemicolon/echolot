@@ -58,19 +58,17 @@ pub fn receive() {
     }
 
     // Transmit Handshake Tone
-    let handshake_spinner = ProgressBar::new_spinner();
-    handshake_spinner.enable_steady_tick(Duration::from_millis(60));
-    handshake_spinner.set_message("Establishing Handshake");
-
-    audio_output.playback(vec![Frequency::new_with_len(HANDSHAKE_RECEIVER_FREQ, 300)]);
-    audio_output.sink.sleep_until_end();
+    let fileinfo_spinner = ProgressBar::new_spinner();
+    fileinfo_spinner.enable_steady_tick(Duration::from_millis(60));
+    fileinfo_spinner.set_message("Listening for FileInfo Transmission");
 
     let num_samples =
-        ((BYTE_DURATION_MS as f32 / 1000.0) * audio_input.sample_rate.0 as f32) as usize;
+        (((BYTE_DURATION_MS as f32 / 1000.0) / 2.0) * audio_input.sample_rate.0 as f32) as usize;
     let mut interval_samples = HeapRb::<f32>::new(num_samples);
     let mut in_packet = false;
-    let handshake_deadline = Instant::now() + Duration::from_secs(2);
     let mut fileinfo_freqs: Vec<Frequency> = vec![];
+    let interval = Duration::from_millis(BYTE_DURATION_MS as u64 / 2);
+    let mut next_tick = Instant::now();
 
     loop {
         if let Ok(chunk) = audio_input.consumer.read_chunk(512) {
@@ -79,7 +77,8 @@ pub fn receive() {
             }
         }
 
-        if interval_samples.is_full() {
+        if Instant::now() >= next_tick {
+            next_tick += interval;
             let samples: Vec<f32> = interval_samples.iter().copied().collect::<Vec<f32>>();
             let freq = pitch_detection::dominant_frequency(&samples, audio_input.sample_rate);
 
@@ -87,14 +86,9 @@ pub fn receive() {
 
             // SOT Detection
             if !in_packet && is_within_tolerance_to(freq, SOT_FREQ, STD_TOLERANCE) {
-                handshake_spinner.set_message("Established Handshake");
-                handshake_spinner.set_message("Receiving FileInfo");
+                fileinfo_spinner.set_message("Receiving FileInfo Transmission");
                 in_packet = true;
-            } else if Instant::now() > handshake_deadline {
-                handshake_spinner.finish_with_message("Handshake failed");
-                exit(1);
             }
-
             // EOT Detection
             if in_packet && is_within_tolerance_to(freq, EOT_FREQ, STD_TOLERANCE) {
                 in_packet = false;
@@ -104,8 +98,6 @@ pub fn receive() {
             if in_packet {
                 fileinfo_freqs.push(Frequency::new(quantise_to_codec(freq)));
             }
-
-            interval_samples.clear();
         }
     }
 
@@ -114,7 +106,21 @@ pub fn receive() {
         fileinfo_freqs.iter().map(|f| f.freq).collect::<Vec<f32>>()
     );
 
-    let received_fileinfo = FileInfo::decode(demodulate(fileinfo_freqs).unwrap());
+    let processed_fileinfo_freqs = fileinfo_freqs
+        .iter()
+        .cloned()
+        .step_by(2)
+        .collect::<Vec<Frequency>>();
+
+    println!(
+        "Freqs Received: {:?}",
+        processed_fileinfo_freqs
+            .iter()
+            .map(|f| f.freq)
+            .collect::<Vec<f32>>()
+    );
+
+    let received_fileinfo = FileInfo::decode(demodulate(processed_fileinfo_freqs).unwrap());
 
     println!("Demodulated: {:?}", received_fileinfo);
 }

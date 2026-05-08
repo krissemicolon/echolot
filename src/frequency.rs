@@ -5,7 +5,7 @@ use crate::BYTE_DURATION_MS;
 /// Wrapper around Rodio's SineWave
 /// because it doesnt expose frequency field
 /// this is a memory overhead that could be improved
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Frequency {
     pub freq: f32,
     pub len: u64,

@@ -88,40 +88,6 @@ pub fn transmit(path: &Path) {
         }
     };
 
-    // Handshake
-    let handshake_spinner = ProgressBar::new_spinner();
-    handshake_spinner.enable_steady_tick(Duration::from_millis(60));
-
-    match audio_input.start() {
-        Ok(_) => handshake_spinner.set_message("Listening for Receiver's Handshake Initiation"),
-        Err(e) => panic!("Could Not Start Listening To Microphone: {}", e),
-    }
-
-    let num_samples =
-        ((BYTE_DURATION_MS as f32 / 1000.0) * audio_input.sample_rate.0 as f32) as usize;
-    let mut interval_samples = HeapRb::<f32>::new(num_samples);
-    loop {
-        if let Ok(chunk) = audio_input.consumer.read_chunk(512) {
-            for sample in chunk {
-                interval_samples.push_overwrite(sample);
-            }
-        }
-
-        if interval_samples.is_full() {
-            let samples: Vec<f32> = interval_samples.iter().copied().collect::<Vec<f32>>();
-            let freq = pitch_detection::dominant_frequency(&samples, audio_input.sample_rate);
-
-            println!("listen hs FULL and EVAL {freq}");
-
-            // Handshake Detection
-            if is_within_tolerance_to(freq, HANDSHAKE_RECEIVER_FREQ, STD_TOLERANCE) {
-                handshake_spinner.set_message("Established Handshake");
-                break;
-            }
-
-            interval_samples.clear();
-        }
-    }
     // File Info Transmission
     let fileinfo_spinner = ProgressBar::new_spinner();
     fileinfo_spinner.set_message("Transmitting FileInfo");
