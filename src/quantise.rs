@@ -28,7 +28,6 @@ mod tests {
             (FileInfo {
                 file_name: "foo.txt".to_string(),
                 file_size: 1711,
-                checksum: 0,
             })
             .encode(),
         )

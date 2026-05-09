@@ -45,7 +45,6 @@ mod tests {
         let input_packet = FileInfo {
             file_name: "foo.txt".to_string(),
             file_size: 1711,
-            checksum: 0,
         };
         let freqs: Vec<Frequency> = modulate(input_packet.encode());
         let packet_encoded = demodulate(freqs).unwrap();
