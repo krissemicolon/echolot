@@ -21,7 +21,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_quantisation() {
+    fn quantisation() {
         let mut rng = rand::rngs::StdRng::seed_from_u64(42);
 
         let expected_freqs: Vec<f32> = modulate(

@@ -41,7 +41,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_modulation_demodulation() {
+    fn roundtrip_modulation_demodulation() {
         let input_packet = FileInfo {
             file_name: "foo.txt".to_string(),
             file_size: 1711,
@@ -54,7 +54,7 @@ mod tests {
     }
 
     #[test]
-    fn test_binops() {
+    fn binops() {
         let expected_values: Vec<u8> = (0..=255).collect();
         let rebuilt_values: Vec<u8> = expected_values
             .iter()

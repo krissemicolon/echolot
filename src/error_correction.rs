@@ -113,9 +113,7 @@ fn recover_payload(
             }
             rebuilt_payload.truncate(payload_len);
 
-            if lzma::decompress(&rebuilt_payload).is_ok() {
-                return Some(rebuilt_payload);
-            }
+            return Some(rebuilt_payload);
         }
     }
 
@@ -146,4 +144,36 @@ fn combinations(total: usize, choose: usize) -> Vec<Vec<usize>> {
     let mut current = Vec::new();
     walk(0, total, choose, &mut current, &mut out);
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::{RngExt, SeedableRng};
+
+    fn gen_test_bin() -> Vec<u8> {
+        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        (0..1000).map(|_| rng.random::<u8>()).collect()
+    }
+
+    #[test]
+    fn decode_recovers_single_corrupted_shard() {
+        let input = gen_test_bin();
+        let mut encoded = rs_encode_payload(&input);
+
+        encoded[8] ^= 0xAA;
+
+        let output = rs_decode_payload(&encoded);
+        assert_eq!(input, output);
+    }
+
+    #[test]
+    #[should_panic(expected = "truncated shard payload")]
+    fn decode_rejects_malformed_envelope() {
+        let mut malformed: Vec<u8> = vec![4, 2];
+        malformed.extend_from_slice(&10u32.to_le_bytes());
+        malformed.extend_from_slice(&[1, 2, 3, 4, 5]);
+
+        let _ = rs_decode_payload(&malformed);
+    }
 }

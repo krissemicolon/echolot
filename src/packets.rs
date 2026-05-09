@@ -39,13 +39,6 @@ pub struct FileInfo {
 impl Packet for FileInfo {}
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct Confirmation {
-    pub state: bool,
-}
-
-impl Packet for Confirmation {}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct FileTransmission {
     pub file: Vec<u8>,
     pub checksum: u32,
@@ -81,29 +74,5 @@ mod tests {
         let output = FileTransmission::decode(encoded);
 
         assert_eq!(input, output);
-    }
-
-    #[test]
-    fn decode_recovers_single_corrupted_shard() {
-        let input = FileInfo {
-            file_name: "bar.bin".to_string(),
-            file_size: 33,
-        };
-        let mut encoded = input.encode();
-
-        encoded[8] ^= 0xAA;
-
-        let output = FileInfo::decode(encoded);
-        assert_eq!(input, output);
-    }
-
-    #[test]
-    #[should_panic(expected = "truncated shard payload")]
-    fn decode_rejects_malformed_envelope() {
-        let mut malformed = vec![4, 2];
-        malformed.extend_from_slice(&10u32.to_le_bytes());
-        malformed.extend_from_slice(&[1, 2, 3, 4, 5]);
-
-        let _ = FileInfo::decode(malformed);
     }
 }

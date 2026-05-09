@@ -1,6 +1,6 @@
 use crate::frequency::Frequency;
 use crate::packets::{FileInfo, FileTransmission, Packet};
-use crate::quantise::{is_within_tolerance_to, quantise_to_codec};
+use crate::quantise::is_within_tolerance_to;
 use crate::{
     CONFIRMATION_ACCEPT_FREQ, CONFIRMATION_DENY_FREQ, STD_TOLERANCE, SYMBOL_DURATION_MS, audio,
 };
@@ -8,12 +8,12 @@ use crate::{EOT_FREQ, pitch_detection};
 use crate::{SOT_FREQ, modulation};
 use indicatif::ProgressBar;
 use ringbuf::HeapRb;
-use ringbuf::traits::{Consumer, Observer, RingBuffer};
+use ringbuf::traits::{Consumer, RingBuffer};
 use std::path::Path;
 use std::process::exit;
 use std::thread::sleep;
 use std::time::Instant;
-use std::{fs, thread, time::Duration};
+use std::{fs, time::Duration};
 
 pub fn transmit(path: &Path) {
     // Readying Packets

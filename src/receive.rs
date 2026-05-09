@@ -11,7 +11,7 @@ use indicatif::{HumanBytes, ProgressBar};
 use inquire::{InquireError, Select};
 use ringbuf::{
     HeapRb,
-    traits::{Consumer, Observer, RingBuffer},
+    traits::{Consumer, RingBuffer},
 };
 use std::fs;
 use std::{
