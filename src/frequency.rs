@@ -1,5 +1,3 @@
-use rodio::source::SineWave;
-
 use crate::SYMBOL_DURATION_MS;
 
 /// Wrapper around Rodio's SineWave
@@ -9,7 +7,6 @@ use crate::SYMBOL_DURATION_MS;
 pub struct Frequency {
     pub freq: f32,
     pub len: u64,
-    pub sine_wave: SineWave,
 }
 
 impl Frequency {
@@ -17,15 +14,10 @@ impl Frequency {
         Self {
             freq,
             len: SYMBOL_DURATION_MS,
-            sine_wave: SineWave::new(freq),
         }
     }
     pub fn new_with_len(freq: f32, len: u64) -> Self {
-        Self {
-            freq,
-            len,
-            sine_wave: SineWave::new(freq),
-        }
+        Self { freq, len }
     }
 }
 

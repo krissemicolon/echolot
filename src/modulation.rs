@@ -14,12 +14,16 @@ pub fn modulate(data: Vec<u8>) -> Vec<Frequency> {
 /// 16-MFSK Demodulation for data packets
 /// with reserved frequencies for control packets
 pub fn demodulate(freqs: Vec<Frequency>) -> Option<Vec<u8>> {
+    if freqs.len() < 2 || freqs.len() % 2 != 0 {
+        return None;
+    }
+
     let d = |f: f32| -> u8 { ((f - MOD_OFFSET) / MOD_STEP_SIZE) as u8 };
 
     Some(
         freqs
             .chunks_exact(2)
-            .map(|pair| create_byte(d(pair[0].freq), d(pair.get(1).unwrap_or(&pair[0]).freq)))
+            .map(|pair| create_byte(d(pair[0].freq), d(pair[1].freq)))
             .collect(),
     )
 }
